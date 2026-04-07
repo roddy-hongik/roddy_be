@@ -9,7 +9,9 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "user_stacks")
+@Table(name = "user_stacks", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_user_stack", columnNames = {"user_id", "stack_id"})
+})
 public class UserStack extends BaseEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -17,14 +19,14 @@ public class UserStack extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "stack_id")
+    @JoinColumn(name = "stack_id", nullable = false)
     private Stack stack;
 
-    // 숙련도 (1~5 점수 또는 HIGH/MIDDLE/LOW)
+    // 숙련도
     @Enumerated(EnumType.STRING)
     private StackLevel stackLevel;
 }

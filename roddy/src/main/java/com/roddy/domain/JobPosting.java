@@ -32,5 +32,13 @@ public class JobPosting extends BaseEntity{
     private LocalDateTime startDate;
     private LocalDateTime endDate;
 
+    @PrePersist
+    @PreUpdate
+    public void validateDates() {
+        if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+            throw new IllegalStateException("채용 시작일은 종료일보다 이전이어야 합니다.");
+        }
+    }
+
     private String jobCategory; // 인턴/신입/경력직
 }

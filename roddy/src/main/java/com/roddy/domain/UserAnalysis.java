@@ -15,8 +15,8 @@ public class UserAnalysis extends BaseEntity { // createdAtÏùÑ lastAnalyzedAt Îå
     @Column(name = "user_analysis_id")
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", unique = true, nullable = false)
     private User user;
 
     private Integer dataModelingScore;

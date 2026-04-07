@@ -8,7 +8,9 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "user_scrap_jobs")
+@Table(name = "user_scrap_jobs", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_user_scrap", columnNames = {"user_id", "job_id"})
+})
 public class UserScrapJob extends BaseEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,10 +18,10 @@ public class UserScrapJob extends BaseEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_id")
+    @JoinColumn(name = "job_id", nullable = false)
     private JobPosting jobPosting;
 }

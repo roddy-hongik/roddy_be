@@ -17,11 +17,15 @@ public class User extends BaseEntity{
     @Column(name = "user_id")
     private Long id;
 
+    @Column(nullable = false, unique = true)
     private String loginId;
+
+    @Column(nullable = false, unique = true)
+    private String email;
+
     private String nickname;
     private String userName;
     private String phone;
-    private String email;
     private String profileImageUrl;
     private Integer age;
     private String portfolioUrl;
