@@ -38,7 +38,8 @@ public class Comment extends BaseEntity {
     @PrePersist
     @PreUpdate
     public void validateParentPost() {
-        if (parent != null && !parent.getPost().equals(this.post)) {
+        // 객체(Proxy) 비교가 아닌, 실제 식별자(ID) 값을 비교하도록 수정
+        if (parent != null && !parent.getPost().getId().equals(this.post.getId())) {
             throw new IllegalStateException("대댓글은 부모 댓글과 같은 게시글에만 작성할 수 있습니다.");
         }
     }
