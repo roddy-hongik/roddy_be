@@ -1,15 +1,17 @@
 package com.roddy.domain;
 
+import com.roddy.domain.enums.RecruitType;
+import com.roddy.domain.enums.JobPostingStatus;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder(access = AccessLevel.PRIVATE)
 @Table(name = "job_postings")
 public class JobPosting extends BaseEntity{
 
@@ -17,20 +19,32 @@ public class JobPosting extends BaseEntity{
     @Column(name = "job_id")
     private Long id;
 
+    @Column(nullable = false)
     private String title;
 
-    private String recruitField; // 채용 분야
+    @Column(columnDefinition = "TEXT", nullable = false)
+    private String content;
 
-    @Column(columnDefinition = "TEXT")
-    private String content; // 채용 본문 내용
 
-    // 하나의 기업은 여러 채용공고를 가질 수 있으므로 N:1 관계
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id")
-    private Company company;
+
+    //채용 직무 분야
+    @Column(nullable = false)
+    private String recruitField;
+
+    @Column(nullable = false)
+    private String company;
+
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RecruitType recruitType; // 인턴/신입/경력직
 
     private LocalDateTime startDate;
     private LocalDateTime endDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private JobPostingStatus status;
 
     @PrePersist
     @PreUpdate
@@ -40,5 +54,28 @@ public class JobPosting extends BaseEntity{
         }
     }
 
-    private String jobCategory; // 인턴/신입/경력직
+    public static JobPosting create(String title, String content, String company,
+                                    String recruitField, RecruitType recruitType,
+                                    JobPostingStatus status) {
+        return JobPosting.builder()
+                .title(title)
+                .content(content)
+                .company(company)
+                .recruitField(recruitField)
+                .recruitType(recruitType)
+                .status(status)
+                .build();
+    }
+
+    public void update(String title, String content,
+                       String company, String recruitField) {
+        this.title = title;
+        this.content = content;
+        this.company = company;
+        this.recruitField = recruitField;
+    }
+
+    public void updateStatus(JobPostingStatus status) {
+        this.status = status;
+    }
 }

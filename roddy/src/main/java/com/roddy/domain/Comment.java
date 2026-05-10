@@ -30,17 +30,13 @@ public class Comment extends BaseEntity {
     @JoinColumn(name = "post_id", nullable = false)
     private Post post;
 
+    /**
+     * 대댓글 구조를 위한 자기 참조 관계.
+     * parent == null 이면 최상위 댓글, 아니면 대댓글입니다.
+     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Comment parent;
 
-    // 엔티티가 저장/수정되기 전에 데이터 정합성을 검증합니다.
-    @PrePersist
-    @PreUpdate
-    public void validateParentPost() {
-        // 객체(Proxy) 비교가 아닌, 실제 식별자(ID) 값을 비교하도록 수정
-        if (parent != null && !parent.getPost().getId().equals(this.post.getId())) {
-            throw new IllegalStateException("대댓글은 부모 댓글과 같은 게시글에만 작성할 수 있습니다.");
-        }
-    }
+
 }
