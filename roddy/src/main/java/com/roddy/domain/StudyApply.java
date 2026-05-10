@@ -10,8 +10,8 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(access = AccessLevel.PRIVATE)
-@Table(name = "study_members", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_study_member", columnNames = {"user_id", "study_id"})
+@Table(name = "study_applies", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_study_apply_user_study", columnNames = {"user_id", "study_id"})
 })
 public class StudyApply extends BaseEntity {
 

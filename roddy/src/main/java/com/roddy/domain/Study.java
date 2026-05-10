@@ -58,6 +58,11 @@ public class Study extends BaseEntity {
     }
 
     public void update(String title, String content, int recruitNum) {
+        if (recruitNum < this.currentNum) {
+            throw new IllegalArgumentException(
+                    "모집 인원(" + recruitNum + ")은 현재 인원(" + this.currentNum + ")보다 작을 수 없습니다."
+            );
+        }
         this.title = title;
         this.content = content;
         this.recruitNum = recruitNum;

@@ -16,6 +16,8 @@ public class StackDetail {
     @Column(name = "stack_id")
     private Long id;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Stack stack;
 
     private String stackName;

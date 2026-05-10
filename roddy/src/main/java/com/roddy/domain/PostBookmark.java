@@ -28,12 +28,12 @@ public class PostBookmark extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY,optional = false)
     @JoinColumn(name = "user_id",nullable = false)
-    private User user; // 작성자
+    private User user;// 북마크한 사용자
 
 
     @ManyToOne(fetch = FetchType.LAZY,optional = false)
     @JoinColumn(name = "post_id",nullable = false)
-    private Post post; // 작성자
+    private Post post;// 북마크된 게시글
 
     public static PostBookmark create(User user, Post post) {
         return PostBookmark.builder()

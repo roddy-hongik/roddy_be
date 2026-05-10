@@ -69,12 +69,16 @@ public class User extends BaseEntity{
     @Enumerated(EnumType.STRING)
     private DesiredJob desiredJob;
 
+
     @Builder
-    public User(String socialId, String email, SocialType socialType, String name) {
+    public User(String socialId, String email, SocialType socialType,
+                String nickname, String username, Role role) {
         this.socialId = socialId;
         this.email = email;
         this.socialType = socialType;
+        this.nickname = nickname;
         this.username = username;
+        this.role = role;
         this.isOnboarded = false;
         this.githubConnected = false;
     }
