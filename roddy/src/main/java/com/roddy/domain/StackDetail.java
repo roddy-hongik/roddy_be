@@ -1,5 +1,6 @@
 package com.roddy.domain;
 
+import com.roddy.domain.enums.Stack;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -9,14 +10,15 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "stacks")
-public class Stack {
+public class StackDetail {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "stack_id")
     private Long id;
 
-    private String name; // 예: Java, Spring Boot, MySQL
+    private Stack stack;
 
-    // 1. Data Modeling, 2. Architecture 등
-    private String category;
+    private String stackName;
+
+    private String description;
 }

@@ -1,11 +1,16 @@
 package com.roddy.domain;
 
+import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.enums.ExperienceLevel;
+import com.roddy.domain.enums.Role;
+import com.roddy.domain.enums.SocialType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -17,36 +22,60 @@ public class User extends BaseEntity{
     @Column(name = "user_id")
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String loginId;
 
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private SocialType socialType;
+
+
+    @Column(nullable = false)
     private String nickname;
-    private String userName;
-    private String phone;
-    private String profileImageUrl;
-    private Integer age;
-    private String portfolioUrl;
+
+    @Column(nullable = false)
+    private String username;
+
+    private int age;
+
 
     // 경력 연차 (신입/경력 등을 나누기 위해 Enum 사용 권장)
     @Enumerated(EnumType.STRING)
     private ExperienceLevel experienceYears;
 
+    private String socialId;
+
+    private String portfolioUrl;
+
+    private String portfolioFileName;
+
+    private LocalDateTime portfolioUploadedAt;
+
+    private String githubId;
     private String githubUrl;
 
-    // 소셜 로그인 제공자 (GOOGLE, KAKAO 등)
-    private String socialProvider;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
+
+    private String profileImageUrl;
+
+    private boolean isOnboarded;
+
+    private boolean githubConnected;
 
     // 희망 직무
-    private String targetField;
+    @Enumerated(EnumType.STRING)
+    private DesiredJob desiredJob;
 
     @Builder
-    public User(String loginId, String nickname, String email, ExperienceLevel experienceYears) {
-        this.loginId = loginId;
-        this.nickname = nickname;
+    public User(String socialId, String email, SocialType socialType, String name) {
+        this.socialId = socialId;
         this.email = email;
-        this.experienceYears = experienceYears;
+        this.socialType = socialType;
+        this.username = username;
+        this.isOnboarded = false;
+        this.githubConnected = false;
     }
 }
