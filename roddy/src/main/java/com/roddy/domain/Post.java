@@ -1,10 +1,10 @@
 package com.roddy.domain;
 
+import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.enums.PostCategory;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 

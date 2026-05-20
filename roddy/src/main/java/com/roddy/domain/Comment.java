@@ -1,5 +1,6 @@
 package com.roddy.domain;
 
+import com.roddy.domain.auth.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
