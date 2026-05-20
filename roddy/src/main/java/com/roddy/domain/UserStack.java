@@ -1,12 +1,12 @@
 package com.roddy.domain;
 
+import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.enums.StackLevel;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import jakarta.persistence.*;
 import lombok.*;
 
 @Entity

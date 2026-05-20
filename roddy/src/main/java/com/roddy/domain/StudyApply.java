@@ -1,5 +1,6 @@
 package com.roddy.domain;
 
+import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.enums.StudyApplyStatus;
 import jakarta.persistence.*;
 import lombok.*;

@@ -1,5 +1,6 @@
-package com.roddy.domain;
+package com.roddy.domain.auth.entity;
 
+import com.roddy.domain.BaseEntity;
 import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.enums.ExperienceLevel;
 import com.roddy.domain.enums.Role;
@@ -16,7 +17,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "users")
-public class User extends BaseEntity{
+public class User extends BaseEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
@@ -25,6 +26,8 @@ public class User extends BaseEntity{
 
     @Column(nullable = false, unique = true)
     private String email;
+
+    private String password;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -39,8 +42,6 @@ public class User extends BaseEntity{
 
     private int age;
 
-
-    // 경력 연차 (신입/경력 등을 나누기 위해 Enum 사용 권장)
     @Enumerated(EnumType.STRING)
     private ExperienceLevel experienceYears;
 
@@ -71,15 +72,45 @@ public class User extends BaseEntity{
 
 
     @Builder
-    public User(String socialId, String email, SocialType socialType,
+    public User(String socialId, String email, String password, SocialType socialType,
                 String nickname, String username, Role role) {
         this.socialId = socialId;
         this.email = email;
+        this.password = password;
         this.socialType = socialType;
         this.nickname = nickname;
         this.username = username;
         this.role = role;
         this.isOnboarded = false;
         this.githubConnected = false;
+    }
+
+    public static User signup(String name, String email, String encodedPassword) {
+        return User.builder()
+                .email(email)
+                .password(encodedPassword)
+                .socialType(SocialType.LOCAL)
+                .nickname(name)
+                .username(name)
+                .role(Role.USER)
+                .build();
+    }
+
+    public static User createSocialUser(
+            String name,
+            String email,
+            String encodedPassword,
+            SocialType socialType,
+            String socialId
+    ) {
+        return User.builder()
+                .socialId(socialId)
+                .email(email)
+                .password(encodedPassword)
+                .socialType(socialType)
+                .nickname(name)
+                .username(name)
+                .role(Role.USER)
+                .build();
     }
 }
