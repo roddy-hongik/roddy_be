@@ -10,7 +10,7 @@ spring:
 
 jwt:
   secret:
-    key: ${JWT_SECRET_KEY:ZmFrZS1qd3Qtc2VjcmV0LWtleS1mb3ItbG9jYWwtZGV2ZWxvcG1lbnQta2VlcC1pdC1sb25n}
+    key: ${JWT_SECRET_KEY}
   expiration:
     access-token: ${JWT_ACCESS_TOKEN_EXPIRATION:3600000}
     refresh-token: ${JWT_REFRESH_TOKEN_EXPIRATION:1209600000}

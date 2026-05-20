@@ -34,6 +34,10 @@ public class JwtUtil {
 
     @PostConstruct
     public void init() {
+        if (secretKey == null || secretKey.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET_KEY must be set");
+        }
+
         byte[] bytes = Base64.getDecoder().decode(secretKey);
         key = Keys.hmacShaKeyFor(bytes);
     }

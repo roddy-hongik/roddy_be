@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -45,23 +46,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             if (jwtUtil.validateToken(token)) {
-                Claims claims = jwtUtil.getClaimsFromToken(token);
+                try {
+                    Claims claims = jwtUtil.getClaimsFromToken(token);
+                    String email = jwtUtil.getEmailFromToken(claims);
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-                String email = jwtUtil.getEmailFromToken(claims);
+                    Authentication authentication = new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                    SecurityContext context = SecurityContextHolder.getContext();
+                    context.setAuthentication(authentication);
+                    SecurityContextHolder.setContext(context);
 
-                Authentication authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-
-                SecurityContext context = SecurityContextHolder.getContext();
-                context.setAuthentication(authentication);
-                SecurityContextHolder.setContext(context);
-
-                log.info("사용자 인증 성공: email = {}", email);
+                    log.info("사용자 인증 성공: email = {}", email);
+                } catch (UsernameNotFoundException e) {
+                    SecurityContextHolder.clearContext();
+                    log.debug("JWT subject user not found");
+                } catch (RuntimeException e) {
+                    SecurityContextHolder.clearContext();
+                    log.debug("JWT authentication skipped due to runtime exception", e);
+                }
             }
         }
 

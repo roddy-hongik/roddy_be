@@ -15,6 +15,8 @@ import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.Collections;
+
 @Configuration
 public class SwaggerConfig {
 
@@ -38,6 +40,7 @@ public class SwaggerConfig {
         Paths paths = new Paths()
                 .addPathItem("/oauth2/authorization/google", new PathItem().get(
                         new Operation()
+                                .security(Collections.emptyList())
                                 .tags(java.util.List.of("Auth"))
                                 .summary("Google OAuth2 로그인 시작")
                                 .description("프론트엔드는 이 주소로 이동만 하면 됩니다. 이후 구글 로그인 화면 이동과 인가 코드 요청은 Spring Security가 자동으로 처리합니다.")
@@ -48,16 +51,17 @@ public class SwaggerConfig {
                 ))
                 .addPathItem("/login/oauth2/code/google", new PathItem().get(
                         new Operation()
+                                .security(Collections.emptyList())
                                 .tags(java.util.List.of("Auth"))
                                 .summary("Google OAuth2 콜백")
-                                .description("구글 인증 후 Spring Security가 처리하는 콜백 엔드포인트입니다. 성공 시 프론트엔드 리다이렉트 URI로 accessToken, refreshToken을 붙여 리다이렉트하고, 실패 시 error, message를 붙여 리다이렉트합니다.")
+                                .description("구글 인증 후 Spring Security가 처리하는 콜백 엔드포인트입니다. 성공 시 토큰은 HttpOnly 쿠키로 설정되고 프론트엔드 리다이렉트 URI로 이동합니다. 실패 시에는 고정된 오류 코드와 메시지만 전달합니다.")
                                 .responses(new ApiResponses()
                                         .addApiResponse("302", new ApiResponse()
                                                 .description("프론트엔드로 리다이렉트")
                                                 .content(new Content().addMediaType("text/plain", new MediaType()
                                                         .schema(new StringSchema())
-                                                        .addExamples("success", new Example().value("http://localhost:3000/oauth2/redirect?accessToken=...&refreshToken=..."))
-                                                        .addExamples("failure", new Example().value("http://localhost:3000/oauth2/redirect?error=oauth2_login_failed&message=..."))
+                                                        .addExamples("success", new Example().value("http://localhost:3000/oauth2/redirect"))
+                                                        .addExamples("failure", new Example().value("http://localhost:3000/oauth2/redirect?error=oauth2_authentication_failed&message=Authentication%20failed"))
                                                 ))
                                         )
                                         .addApiResponse("400", new ApiResponse()

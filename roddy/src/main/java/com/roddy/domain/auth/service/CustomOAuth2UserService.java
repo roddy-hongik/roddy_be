@@ -34,11 +34,19 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         String email = (String) attributes.get("email");
         String name = (String) attributes.getOrDefault("name", email);
         String socialId = (String) attributes.get("sub");
+        boolean emailVerified = isEmailVerified(attributes.get("email_verified"));
 
         if (email == null || socialId == null) {
             throw new OAuth2AuthenticationException(
                     new OAuth2Error("invalid_user_info"),
                     "구글 사용자 정보 조회에 실패했습니다."
+            );
+        }
+
+        if (!emailVerified) {
+            throw new OAuth2AuthenticationException(
+                    new OAuth2Error("invalid_unverified_email"),
+                    "이메일 인증이 완료된 구글 계정만 사용할 수 있습니다."
             );
         }
 
@@ -62,5 +70,15 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     private String createDummyPassword() {
         return passwordEncoder.encode(UUID.randomUUID().toString());
+    }
+
+    private boolean isEmailVerified(Object emailVerified) {
+        if (emailVerified instanceof Boolean verified) {
+            return verified;
+        }
+        if (emailVerified instanceof String verified) {
+            return Boolean.parseBoolean(verified);
+        }
+        return false;
     }
 }

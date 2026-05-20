@@ -34,10 +34,9 @@ public class ExceptionAdvice {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Object>> handleValidationException(MethodArgumentNotValidException e) {
         var errors = e.getBindingResult().getFieldErrors().stream()
-                .map(fe -> String.format("[%s] %s (입력값: %s)",
+                .map(fe -> String.format("[%s] %s",
                         fe.getField(),
-                        fe.getDefaultMessage(),
-                        fe.getRejectedValue()))
+                        fe.getDefaultMessage()))
                 .toList();
 
         log.warn("Validation failed: {}", errors);
@@ -51,10 +50,9 @@ public class ExceptionAdvice {
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiResponse<Object>> handleConstraintViolationException(ConstraintViolationException e) {
         List<String> errors = e.getConstraintViolations().stream()
-                .map(violation -> String.format("[%s] %s (입력값: %s)",
+                .map(violation -> String.format("[%s] %s",
                         violation.getPropertyPath().toString(),
-                        violation.getMessage(),
-                        violation.getInvalidValue()))
+                        violation.getMessage()))
                 .collect(Collectors.toList());
 
         log.warn("Constraint violation: {}", errors);

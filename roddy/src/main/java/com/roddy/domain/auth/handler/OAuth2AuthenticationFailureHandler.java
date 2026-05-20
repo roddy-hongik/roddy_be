@@ -3,6 +3,7 @@ package com.roddy.domain.auth.handler;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
@@ -12,6 +13,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.io.IOException;
 
 @Component
+@Slf4j
 public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
     @Value("${app.oauth2.redirect-uri:http://localhost:3000/oauth2/redirect}")
@@ -23,9 +25,11 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
             HttpServletResponse response,
             AuthenticationException exception
     ) throws IOException, ServletException {
+        log.error("OAuth2 authentication failure", exception);
+
         String redirectUrl = UriComponentsBuilder.fromUriString(frontendRedirectUri)
-                .queryParam("error", "oauth2_login_failed")
-                .queryParam("message", exception.getMessage())
+                .queryParam("error", "oauth2_authentication_failed")
+                .queryParam("message", "Authentication failed")
                 .build()
                 .toUriString();
 

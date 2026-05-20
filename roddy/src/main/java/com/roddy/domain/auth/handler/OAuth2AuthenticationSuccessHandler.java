@@ -12,7 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.http.ResponseCookie;
 
 import java.io.IOException;
 
@@ -25,6 +25,12 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     @Value("${app.oauth2.redirect-uri:http://localhost:3000/oauth2/redirect}")
     private String frontendRedirectUri;
 
+    @Value("${jwt.expiration.access-token}")
+    private long accessTokenTime;
+
+    @Value("${jwt.expiration.refresh-token}")
+    private long refreshTokenTime;
+
     @Override
     public void onAuthenticationSuccess(
             HttpServletRequest request,
@@ -35,13 +41,28 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         User user = principal.user();
 
         LoginResponse tokenResponse = authService.issueTokens(user);
+        boolean secureCookie = request.isSecure() || frontendRedirectUri.startsWith("https://");
 
-        String redirectUrl = UriComponentsBuilder.fromUriString(frontendRedirectUri)
-                .queryParam("accessToken", tokenResponse.accessToken())
-                .queryParam("refreshToken", tokenResponse.refreshToken())
-                .build()
-                .toUriString();
+        addAuthCookie(response, "accessToken", tokenResponse.accessToken(), accessTokenTime, secureCookie);
+        addAuthCookie(response, "refreshToken", tokenResponse.refreshToken(), refreshTokenTime, secureCookie);
 
-        getRedirectStrategy().sendRedirect(request, response, redirectUrl);
+        getRedirectStrategy().sendRedirect(request, response, frontendRedirectUri);
+    }
+
+    private void addAuthCookie(
+            HttpServletResponse response,
+            String name,
+            String value,
+            long maxAgeMillis,
+            boolean secure
+    ) {
+        ResponseCookie cookie = ResponseCookie.from(name, value)
+                .httpOnly(true)
+                .secure(secure)
+                .sameSite("Strict")
+                .path("/")
+                .maxAge(maxAgeMillis / 1000)
+                .build();
+        response.addHeader("Set-Cookie", cookie.toString());
     }
 }

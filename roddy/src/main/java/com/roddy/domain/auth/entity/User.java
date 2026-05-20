@@ -1,11 +1,13 @@
 package com.roddy.domain.auth.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.roddy.domain.BaseEntity;
 import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.enums.ExperienceLevel;
 import com.roddy.domain.enums.Role;
 import com.roddy.domain.enums.SocialType;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,6 +29,9 @@ public class User extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @NotNull
+    @Column(nullable = false)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
     @Enumerated(EnumType.STRING)

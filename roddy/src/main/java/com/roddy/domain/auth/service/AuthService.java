@@ -16,10 +16,13 @@ import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -30,6 +33,7 @@ public class AuthService {
     private static final String BLACKLIST_PREFIX = "Blacklist:";
     private static final String REISSUE_LOCK_PREFIX = "ReissueLock:";
     private static final long REISSUE_LOCK_TIMEOUT_SECONDS = 3L;
+    private static final DefaultRedisScript<Long> COMPARE_AND_DELETE_SCRIPT = createCompareAndDeleteScript();
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -93,9 +97,10 @@ public class AuthService {
         }
 
         String lockKey = getReissueLockKey(accessUserId);
+        String lockOwner = UUID.randomUUID().toString();
         Boolean locked = redisTemplate.opsForValue().setIfAbsent(
                 lockKey,
-                request.refreshToken(),
+                lockOwner,
                 REISSUE_LOCK_TIMEOUT_SECONDS,
                 TimeUnit.SECONDS
         );
@@ -125,7 +130,7 @@ public class AuthService {
                     .refreshToken(newRefreshToken)
                     .build();
         } finally {
-            redisTemplate.delete(lockKey);
+            releaseReissueLock(lockKey, lockOwner);
         }
     }
 
@@ -185,5 +190,24 @@ public class AuthService {
 
     private String getReissueLockKey(Long userId) {
         return REISSUE_LOCK_PREFIX + userId;
+    }
+
+    private void releaseReissueLock(String lockKey, String lockOwner) {
+        redisTemplate.execute(
+                COMPARE_AND_DELETE_SCRIPT,
+                Collections.singletonList(lockKey),
+                lockOwner
+        );
+    }
+
+    private static DefaultRedisScript<Long> createCompareAndDeleteScript() {
+        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
+        script.setResultType(Long.class);
+        script.setScriptText(
+                "if redis.call('get', KEYS[1]) == ARGV[1] then " +
+                        "return redis.call('del', KEYS[1]) " +
+                        "else return 0 end"
+        );
+        return script;
     }
 }
