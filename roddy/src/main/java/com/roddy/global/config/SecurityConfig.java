@@ -64,6 +64,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/onboarding/github/callback").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/community/posts", "/api/community/posts/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/studies", "/api/studies/*").permitAll()
                 .anyRequest().authenticated()
         );
 

@@ -34,7 +34,19 @@ public enum GeneralErrorCode implements BaseErrorCode {
 
     // 커뮤니티 에러
     COMMUNITY_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMUNITY_4041", "게시글을 찾을 수 없습니다."),
-    COMMUNITY_POST_ALREADY_REPORTED(HttpStatus.CONFLICT, "COMMUNITY_4091", "이미 신고한 게시글입니다.");
+    COMMUNITY_POST_ALREADY_REPORTED(HttpStatus.CONFLICT, "COMMUNITY_4091", "이미 신고한 게시글입니다."),
+
+    // 스터디 에러
+    STUDY_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4041", "스터디 모집글을 찾을 수 없습니다."),
+    STUDY_APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4042", "스터디 지원 내역을 찾을 수 없습니다."),
+    STUDY_FORBIDDEN(HttpStatus.FORBIDDEN, "STUDY_4031", "해당 스터디 모집글에 대한 권한이 없습니다."),
+    STUDY_ALREADY_CLOSED(HttpStatus.CONFLICT, "STUDY_4091", "이미 모집 완료된 스터디입니다."),
+    STUDY_CAPACITY_FULL(HttpStatus.CONFLICT, "STUDY_4092", "스터디 모집 인원이 가득 찼습니다."),
+    STUDY_ALREADY_APPLIED(HttpStatus.CONFLICT, "STUDY_4093", "이미 지원한 스터디입니다."),
+    STUDY_APPLICATION_ALREADY_CANCELED(HttpStatus.CONFLICT, "STUDY_4094", "이미 취소된 스터디 지원입니다."),
+    STUDY_AUTHOR_CANNOT_APPLY(HttpStatus.BAD_REQUEST, "STUDY_4001", "작성자는 자신의 스터디에 지원할 수 없습니다."),
+    INVALID_STUDY_MODE_LOCATION(HttpStatus.BAD_REQUEST, "STUDY_4002", "대면 스터디는 장소가 필수입니다."),
+    INVALID_STUDY_SCHEDULE(HttpStatus.BAD_REQUEST, "STUDY_4003", "스터디 진행 시간은 현재 시각 이후여야 합니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
