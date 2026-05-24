@@ -25,6 +25,13 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION}
+      s3:
+        bucket: ${AWS_S3_BUCKET}
+        presign-get-expiration-minutes: ${AWS_S3_PRESIGN_GET_EXPIRATION_MINUTES:10}
 
 jwt:
   secret:
