@@ -2,6 +2,7 @@ package com.roddy.domain.community.service;
 
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
+import com.roddy.domain.community.dto.request.CommunityPostSearchCondition;
 import com.roddy.domain.community.dto.request.CreateCommunityCommentRequest;
 import com.roddy.domain.community.dto.request.CreateCommunityPostRequest;
 import com.roddy.domain.community.dto.response.CommunityCommentResponse;
@@ -16,7 +17,6 @@ import com.roddy.domain.community.entity.CommunityPost;
 import com.roddy.domain.community.entity.CommunityPostImage;
 import com.roddy.domain.community.entity.CommunityPostLike;
 import com.roddy.domain.community.entity.CommunityPostReport;
-import com.roddy.domain.community.enums.CommunityTag;
 import com.roddy.domain.community.repository.CommunityCommentRepository;
 import com.roddy.domain.community.repository.CommunityPostLikeRepository;
 import com.roddy.domain.community.repository.CommunityPostReportRepository;
@@ -56,16 +56,18 @@ public class CommunityPostService {
     private final S3Uploader s3Uploader;
 
     @Transactional(readOnly = true)
-    public CommunityPostListResponse getPosts(CommunityTag tag, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<CommunityPost> posts = tag == null
-                ? communityPostRepository.findAllByOrderByCreatedAtDesc(pageable)
-                : communityPostRepository.findByTagOrderByCreatedAtDesc(tag, pageable);
+    public CommunityPostListResponse getPosts(CommunityPostSearchCondition condition, int page, int size, String sort) {
+        Pageable pageable = PageRequest.of(page, size, resolveSort(sort));
+        Page<CommunityPost> posts = communityPostRepository.search(condition, pageable);
 
         return new CommunityPostListResponse(
                 posts.stream()
                         .map(this::toListItemResponse)
-                        .toList()
+                        .toList(),
+                posts.getNumber(),
+                posts.getSize(),
+                posts.getTotalElements(),
+                posts.getTotalPages()
         );
     }
 
@@ -83,8 +85,10 @@ public class CommunityPostService {
 
         return new CommunityPostDetailResponse(
                 post.getId(),
-                post.getTag().name(),
-                post.getTag().getDisplayName(),
+                post.getPostCategory().name(),
+                post.getPostCategory().getDisplayName(),
+                post.getJobCategory().name(),
+                post.getJobCategory().getDisplayName(),
                 post.getTitle(),
                 post.getContent(),
                 post.getAuthor().getNickname(),
@@ -92,6 +96,9 @@ public class CommunityPostService {
                 post.getViewCount(),
                 post.getLikeCount(),
                 liked,
+                post.getCompany(),
+                post.getPosition(),
+                new ArrayList<>(post.getTechStacks()),
                 post.getImages().stream().map(CommunityPostImage::getImageUrl).toList(),
                 comments
         );
@@ -100,7 +107,16 @@ public class CommunityPostService {
     @Transactional
     public CreateCommunityPostResponse createPost(Long userId, CreateCommunityPostRequest request) {
         User author = getUserOrThrow(userId);
-        CommunityPost post = CommunityPost.create(author, request.getTag(), request.getTitle().trim(), request.getContent().trim());
+        CommunityPost post = CommunityPost.create(
+                author,
+                request.getPostCategory(),
+                request.getJobCategory(),
+                request.getTitle().trim(),
+                request.getContent().trim(),
+                request.getCompany(),
+                request.getPosition(),
+                request.getTechStacks()
+        );
 
         List<String> uploadedImageUrls = new ArrayList<>();
         try {
@@ -177,7 +193,7 @@ public class CommunityPostService {
     }
 
     private CommunityPost getPostOrThrow(Long postId) {
-        return communityPostRepository.findWithAuthorAndImagesById(postId)
+        return communityPostRepository.findDetailById(postId)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.COMMUNITY_POST_NOT_FOUND));
     }
 
@@ -189,13 +205,18 @@ public class CommunityPostService {
     private CommunityPostListItemResponse toListItemResponse(CommunityPost post) {
         return new CommunityPostListItemResponse(
                 post.getId(),
-                post.getTag().name(),
-                post.getTag().getDisplayName(),
+                post.getPostCategory().name(),
+                post.getPostCategory().getDisplayName(),
+                post.getJobCategory().name(),
+                post.getJobCategory().getDisplayName(),
                 post.getTitle(),
                 post.getAuthor().getNickname(),
                 toLocalDate(post.getCreatedAt()),
                 post.getViewCount(),
-                post.getLikeCount()
+                post.getLikeCount(),
+                post.getCompany(),
+                post.getPosition(),
+                new ArrayList<>(post.getTechStacks())
         );
     }
 
@@ -242,5 +263,18 @@ public class CommunityPostService {
 
     private void rollbackUploadedImages(List<String> uploadedImageUrls) {
         uploadedImageUrls.forEach(s3Uploader::deleteFile);
+    }
+
+    private Sort resolveSort(String sort) {
+        if (sort == null || sort.isBlank() || sort.equalsIgnoreCase("latest")) {
+            return Sort.by(Sort.Direction.DESC, "createdAt");
+        }
+        if (sort.equalsIgnoreCase("likeCount")) {
+            return Sort.by(Sort.Order.desc("likeCount"), Sort.Order.desc("createdAt"));
+        }
+        if (sort.equalsIgnoreCase("viewCount")) {
+            return Sort.by(Sort.Order.desc("viewCount"), Sort.Order.desc("createdAt"));
+        }
+        return Sort.by(Sort.Direction.DESC, "createdAt");
     }
 }

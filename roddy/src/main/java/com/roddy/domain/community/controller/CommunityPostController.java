@@ -1,5 +1,6 @@
 package com.roddy.domain.community.controller;
 
+import com.roddy.domain.community.dto.request.CommunityPostSearchCondition;
 import com.roddy.domain.community.dto.request.CreateCommunityCommentRequest;
 import com.roddy.domain.community.dto.request.CreateCommunityPostRequest;
 import com.roddy.domain.community.dto.response.CommunityCommentResponse;
@@ -8,7 +9,6 @@ import com.roddy.domain.community.dto.response.CommunityPostListResponse;
 import com.roddy.domain.community.dto.response.CreateCommunityPostResponse;
 import com.roddy.domain.community.dto.response.ReportPostResponse;
 import com.roddy.domain.community.dto.response.TogglePostLikeResponse;
-import com.roddy.domain.community.enums.CommunityTag;
 import com.roddy.domain.community.service.CommunityPostService;
 import com.roddy.global.apiPayload.ApiResponse;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
@@ -44,13 +44,14 @@ public class CommunityPostController {
     @GetMapping
     @Operation(summary = "커뮤니티 게시글 목록 조회")
     public ApiResponse<CommunityPostListResponse> getPosts(
-            @RequestParam(required = false) CommunityTag tag,
+            @Valid @ModelAttribute CommunityPostSearchCondition condition,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) String sort
     ) {
         return ApiResponse.onSuccess(
                 "커뮤니티 게시글 목록을 조회했습니다.",
-                communityPostService.getPosts(tag, page, size)
+                communityPostService.getPosts(condition, page, size, sort)
         );
     }
 

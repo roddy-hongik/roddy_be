@@ -4,12 +4,17 @@ import java.time.LocalDate;
 
 public record CommunityPostListItemResponse(
         Long id,
-        String tag,
-        String tagDisplayName,
+        String postCategory,
+        String postCategoryDisplayName,
+        String jobCategory,
+        String jobCategoryDisplayName,
         String title,
         String authorName,
         LocalDate createdAt,
         int viewCount,
-        int likeCount
+        int likeCount,
+        String company,
+        String position,
+        java.util.List<String> techStacks
 ) {
 }

@@ -5,8 +5,10 @@ import java.util.List;
 
 public record CommunityPostDetailResponse(
         Long id,
-        String tag,
-        String tagDisplayName,
+        String postCategory,
+        String postCategoryDisplayName,
+        String jobCategory,
+        String jobCategoryDisplayName,
         String title,
         String content,
         String authorName,
@@ -14,6 +16,9 @@ public record CommunityPostDetailResponse(
         int viewCount,
         int likeCount,
         boolean liked,
+        String company,
+        String position,
+        List<String> techStacks,
         List<String> imageUrls,
         List<CommunityCommentResponse> comments
 ) {
