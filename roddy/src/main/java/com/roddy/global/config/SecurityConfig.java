@@ -60,6 +60,7 @@ public class SecurityConfig {
                 .requestMatchers("/", "/health-check").permitAll()
                 .requestMatchers("/").permitAll()
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                .requestMatchers("/api/onboarding/github/callback").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
                 .anyRequest().authenticated()
         );

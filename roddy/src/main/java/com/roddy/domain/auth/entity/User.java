@@ -65,8 +65,6 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private Role role;
 
-    private String profileImageUrl;
-
     private boolean isOnboarded;
 
     private boolean githubConnected;
@@ -117,5 +115,31 @@ public class User extends BaseEntity {
                 .username(name)
                 .role(Role.USER)
                 .build();
+    }
+
+    public void connectGithub(String githubId, String githubUrl) {
+        this.githubId = githubId;
+        this.githubUrl = githubUrl;
+        this.githubConnected = true;
+    }
+
+    public void completeProfile(
+            String name,
+            int age,
+            ExperienceLevel experienceYears,
+            DesiredJob desiredJob,
+            String portfolioUrl,
+            String portfolioFileName,
+            LocalDateTime portfolioUploadedAt
+    ) {
+        this.nickname = name;
+        this.username = name;
+        this.age = age;
+        this.experienceYears = experienceYears;
+        this.desiredJob = desiredJob;
+        this.portfolioUrl = portfolioUrl;
+        this.portfolioFileName = portfolioFileName;
+        this.portfolioUploadedAt = portfolioUploadedAt;
+        this.isOnboarded = true;
     }
 }

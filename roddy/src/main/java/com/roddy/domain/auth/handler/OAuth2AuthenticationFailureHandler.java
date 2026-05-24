@@ -1,5 +1,6 @@
 package com.roddy.domain.auth.handler;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -8,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
@@ -16,8 +18,15 @@ import java.io.IOException;
 @Slf4j
 public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationFailureHandler {
 
-    @Value("${app.oauth2.redirect-uri:http://localhost:3000/oauth2/redirect}")
+    @Value("${app.oauth2.redirect-uri}")
     private String frontendRedirectUri;
+
+    @PostConstruct
+    void validateRedirectUri() {
+        if (!StringUtils.hasText(frontendRedirectUri)) {
+            throw new IllegalStateException("app.oauth2.redirect-uri must be configured.");
+        }
+    }
 
     @Override
     public void onAuthenticationFailure(

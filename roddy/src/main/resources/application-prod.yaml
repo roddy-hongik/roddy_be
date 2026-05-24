@@ -1,0 +1,45 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:mysql://${AWS_DB_URL}/${DB_NAME}?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: ${AWS_DB_USERNAME}
+    password: ${AWS_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate # 운영 서버는 테이블을 절대 건드리지 않고, 맞게 생성되어 있는지만 검증!
+    show-sql: false # 운영 서버 성능 저하 및 보안 이슈 방지를 위해 로그 끄기
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - profile
+              - email
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY}
+  expiration:
+    access-token: ${JWT_ACCESS_TOKEN_EXPIRATION:3600000}
+    refresh-token: ${JWT_REFRESH_TOKEN_EXPIRATION:1209600000}
+
+app:
+  oauth2:
+    redirect-uri: ${APP_OAUTH2_REDIRECT_URI}
+  github:
+    client-id: ${GITHUB_CLIENT_ID}
+    client-secret: ${GITHUB_CLIENT_SECRET}
+    oauth-redirect-uri: ${GITHUB_OAUTH_REDIRECT_URI:https://api.jobdri.site/api/onboarding/github/callback}
+    frontend-redirect-uri: ${GITHUB_FRONTEND_REDIRECT_URI:https://jobdri.site/onboarding/github}
+  portfolio:
+    presign-expiration-minutes: ${PORTFOLIO_PRESIGN_EXPIRATION_MINUTES:10}
