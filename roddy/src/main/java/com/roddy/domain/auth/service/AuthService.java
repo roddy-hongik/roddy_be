@@ -84,6 +84,8 @@ public class AuthService {
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshTokenValue)
+                .isOnboard(user.isOnboarded())
+                .githubConnected(user.isGithubConnected())
                 .build();
     }
 

@@ -8,10 +8,16 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum DesiredJob {
 
-    BEGINNER("초급 (기초 문법 및 개념 이해)"),
-    INTERMEDIATE("중급 (실무 적용 및 문제 해결 가능)"),
-    ADVANCED("고급 (아키텍처 설계 및 성능 최적화 가능)"),
-    EXPERT("전문가 (기술 리딩 및 코어 트러블슈팅 가능)");
+    BACKEND("백엔드 개발자"),
+    FRONTEND("프론트엔드 개발자"),
+    FULLSTACK("풀스택 개발자"),
+    IOS("iOS 개발자"),
+    ANDROID("안드로이드 개발자"),
+    AI_ML("AI/ML 엔지니어"),
+    DATA_ENGINEER("데이터 엔지니어"),
+    DEVOPS("DevOps 엔지니어"),
+    SECURITY("보안 엔지니어"),
+    GAME("게임 개발자");
 
     private final String description;
 

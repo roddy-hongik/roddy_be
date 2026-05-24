@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.http.ResponseCookie;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 
@@ -46,7 +47,13 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         addAuthCookie(response, "accessToken", tokenResponse.accessToken(), accessTokenTime, secureCookie);
         addAuthCookie(response, "refreshToken", tokenResponse.refreshToken(), refreshTokenTime, secureCookie);
 
-        getRedirectStrategy().sendRedirect(request, response, frontendRedirectUri);
+        String redirectUri = UriComponentsBuilder.fromUriString(frontendRedirectUri)
+                .queryParam("isOnboard", tokenResponse.isOnboard())
+                .queryParam("githubConnected", tokenResponse.githubConnected())
+                .build(true)
+                .toUriString();
+
+        getRedirectStrategy().sendRedirect(request, response, redirectUri);
     }
 
     private void addAuthCookie(
