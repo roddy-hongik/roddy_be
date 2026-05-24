@@ -131,6 +131,9 @@ public class OnboardingService {
     }
 
     private ExperienceLevel toExperienceLevel(int experienceYears) {
+        if (experienceYears < 0) {
+            throw new GeneralException(GeneralErrorCode.INVALID_PARAMETER, "경력 연수는 0 이상이어야 합니다.");
+        }
         if (experienceYears == 0) {
             return ExperienceLevel.NEWBIE;
         }

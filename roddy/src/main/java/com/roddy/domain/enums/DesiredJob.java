@@ -8,6 +8,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum DesiredJob {
 
+    @Deprecated
+    BEGINNER("초급 (legacy)"),
+    @Deprecated
+    INTERMEDIATE("중급 (legacy)"),
+    @Deprecated
+    ADVANCED("고급 (legacy)"),
+    @Deprecated
+    EXPERT("전문가 (legacy)"),
     BACKEND("백엔드 개발자"),
     FRONTEND("프론트엔드 개발자"),
     FULLSTACK("풀스택 개발자"),
@@ -20,5 +28,12 @@ public enum DesiredJob {
     GAME("게임 개발자");
 
     private final String description;
+
+    public boolean isLegacyValue() {
+        return switch (this) {
+            case BEGINNER, INTERMEDIATE, ADVANCED, EXPERT -> true;
+            default -> false;
+        };
+    }
 
 }

@@ -21,8 +21,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +34,7 @@ public class GithubOnboardingService {
     private static final String GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token";
     private static final String GITHUB_API_BASE_URL = "https://api.github.com";
     private static final String GITHUB_SCOPE = "read:user";
+    private static final Duration GITHUB_API_TIMEOUT = Duration.ofSeconds(5);
 
     private final UserRepository userRepository;
     private final StringRedisTemplate redisTemplate;
@@ -107,23 +108,31 @@ public class GithubOnboardingService {
     }
 
     private GithubTokenResponse requestAccessToken(String code) {
-        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
-        formData.add("client_id", githubClientId);
-        formData.add("client_secret", githubClientSecret);
-        formData.add("code", code);
-        formData.add("redirect_uri", githubOAuthRedirectUri);
+        GithubTokenResponse response;
+        try {
+            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+            formData.add("client_id", githubClientId);
+            formData.add("client_secret", githubClientSecret);
+            formData.add("code", code);
+            formData.add("redirect_uri", githubOAuthRedirectUri);
 
-        GithubTokenResponse response = WebClient.builder()
-                .baseUrl(GITHUB_ACCESS_TOKEN_URL)
-                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                .defaultHeader(HttpHeaders.USER_AGENT, "roddy-backend")
-                .build()
-                .post()
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(BodyInserters.fromFormData(formData))
-                .retrieve()
-                .bodyToMono(GithubTokenResponse.class)
-                .block();
+            response = WebClient.builder()
+                    .baseUrl(GITHUB_ACCESS_TOKEN_URL)
+                    .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                    .defaultHeader(HttpHeaders.USER_AGENT, "roddy-backend")
+                    .build()
+                    .post()
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(BodyInserters.fromFormData(formData))
+                    .retrieve()
+                    .bodyToMono(GithubTokenResponse.class)
+                    .block(GITHUB_API_TIMEOUT);
+        } catch (IllegalStateException exception) {
+            if (exception.getCause() instanceof TimeoutException) {
+                throw new GeneralException(GeneralErrorCode.EXTERNAL_SERVICE_TIMEOUT, "GitHub 액세스 토큰 요청 시간이 초과되었습니다.");
+            }
+            throw exception;
+        }
 
         if (response == null || response.accessToken() == null || response.accessToken().isBlank()) {
             throw new GeneralException(GeneralErrorCode.EXTERNAL_SERVICE_TIMEOUT, "GitHub 액세스 토큰 발급에 실패했습니다.");
@@ -133,12 +142,20 @@ public class GithubOnboardingService {
     }
 
     private GithubUserProfile fetchGithubUserProfile(String accessToken) {
-        GithubUserProfile response = webClient.get()
-                .uri("/user")
-                .headers(headers -> headers.setBearerAuth(accessToken))
-                .retrieve()
-                .bodyToMono(GithubUserProfile.class)
-                .block();
+        GithubUserProfile response;
+        try {
+            response = webClient.get()
+                    .uri("/user")
+                    .headers(headers -> headers.setBearerAuth(accessToken))
+                    .retrieve()
+                    .bodyToMono(GithubUserProfile.class)
+                    .block(GITHUB_API_TIMEOUT);
+        } catch (IllegalStateException exception) {
+            if (exception.getCause() instanceof TimeoutException) {
+                throw new GeneralException(GeneralErrorCode.EXTERNAL_SERVICE_TIMEOUT, "GitHub 사용자 정보 요청 시간이 초과되었습니다.");
+            }
+            throw exception;
+        }
 
         if (response == null || response.id() == null || response.htmlUrl() == null || response.htmlUrl().isBlank()) {
             throw new GeneralException(GeneralErrorCode.EXTERNAL_SERVICE_TIMEOUT, "GitHub 사용자 정보를 불러오지 못했습니다.");
