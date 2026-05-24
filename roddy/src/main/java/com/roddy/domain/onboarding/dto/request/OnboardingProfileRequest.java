@@ -7,7 +7,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.web.multipart.MultipartFile;
 
 @Getter
 @Setter
@@ -32,6 +31,9 @@ public class OnboardingProfileRequest {
     @NotBlank
     private String desiredCompany;
 
-    @NotNull
-    private MultipartFile portfolio;
+    @NotBlank
+    private String portfolioObjectKey;
+
+    @NotBlank
+    private String portfolioFileName;
 }

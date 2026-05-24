@@ -46,4 +46,4 @@ app:
     oauth-redirect-uri: ${GITHUB_OAUTH_REDIRECT_URI:http://localhost:8080/api/onboarding/github/callback}
     frontend-redirect-uri: ${GITHUB_FRONTEND_REDIRECT_URI:http://localhost:3000/onboarding/github}
   portfolio:
-    upload-dir: ${PORTFOLIO_UPLOAD_DIR:uploads/portfolio}
+    presign-expiration-minutes: ${PORTFOLIO_PRESIGN_EXPIRATION_MINUTES:10}

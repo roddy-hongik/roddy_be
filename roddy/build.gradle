@@ -26,6 +26,7 @@ repositories {
 
 ext {
 	set('springCloudVersion', "2025.1.0")
+	set('springCloudAwsVersion', "3.4.2")
 }
 
 dependencies {
@@ -56,6 +57,9 @@ dependencies {
 
 	// openai
 	implementation 'com.openai:openai-java:4.35.0'
+
+	//S3
+	implementation "io.awspring.cloud:spring-cloud-aws-starter-s3:${springCloudAwsVersion}"
 
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'

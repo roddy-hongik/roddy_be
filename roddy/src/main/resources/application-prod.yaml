@@ -42,4 +42,4 @@ app:
     oauth-redirect-uri: ${GITHUB_OAUTH_REDIRECT_URI:https://api.jobdri.site/api/onboarding/github/callback}
     frontend-redirect-uri: ${GITHUB_FRONTEND_REDIRECT_URI:https://jobdri.site/onboarding/github}
   portfolio:
-    upload-dir: ${PORTFOLIO_UPLOAD_DIR:uploads/portfolio}
+    presign-expiration-minutes: ${PORTFOLIO_PRESIGN_EXPIRATION_MINUTES:10}
