@@ -1,0 +1,57 @@
+spring:
+  autoconfigure:
+    exclude:
+      - io.awspring.cloud.autoconfigure.core.AwsAutoConfiguration
+      - io.awspring.cloud.autoconfigure.core.CredentialsProviderAutoConfiguration
+      - io.awspring.cloud.autoconfigure.core.RegionProviderAutoConfiguration
+      - io.awspring.cloud.autoconfigure.s3.S3AutoConfiguration
+      - io.awspring.cloud.autoconfigure.s3.S3TransferManagerAutoConfiguration
+      - io.awspring.cloud.autoconfigure.s3.S3CrtAsyncClientAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:roddy;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+            scope:
+              - profile
+              - email
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cloud:
+    aws:
+      region:
+        static: ap-northeast-2
+      s3:
+        bucket: test-bucket
+        presign-get-expiration-minutes: 10
+
+jwt:
+  secret:
+    key: dGVzdC1zZWNyZXQta2V5LXRlc3Qtc2VjcmV0LWtleS10ZXN0LXNlY3JldC1rZXk=
+  expiration:
+    access-token: 3600000
+    refresh-token: 1209600000
+
+app:
+  oauth2:
+    redirect-uri: http://localhost:3000/oauth2/redirect
+  github:
+    client-id: test-client-id
+    client-secret: test-client-secret
+    oauth-redirect-uri: http://localhost:8080/api/onboarding/github/callback
+    frontend-redirect-uri: http://localhost:3000/onboarding/github
+  portfolio:
+    presign-expiration-minutes: 10
