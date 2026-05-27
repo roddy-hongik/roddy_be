@@ -58,7 +58,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
+        User user = userRepository.findByEmailAndDeletedAtIsNull(request.email())
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.INVALID_LOGIN, "이메일과 비밀번호를 확인해주세요."));
 
         if (user.getSocialType() != SocialType.LOCAL) {
@@ -119,7 +119,7 @@ public class AuthService {
                 throw new GeneralException(GeneralErrorCode.INVALID_TOKEN, "토큰 정보가 일치하지 않습니다.");
             }
 
-            User user = userRepository.findById(accessUserId)
+            User user = userRepository.findByIdAndDeletedAtIsNull(accessUserId)
                     .orElseThrow(() -> new GeneralException(GeneralErrorCode.USER_NOT_FOUND));
 
             String newAccessToken = jwtUtil.createAccessToken(user.getEmail(), user.getId());

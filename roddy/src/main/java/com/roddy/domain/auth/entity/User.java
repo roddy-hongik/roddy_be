@@ -47,6 +47,8 @@ public class User extends BaseEntity {
 
     private int age;
 
+    private String profileImageUrl;
+
     @Enumerated(EnumType.STRING)
     private ExperienceLevel experienceYears;
 
@@ -68,6 +70,8 @@ public class User extends BaseEntity {
     private boolean isOnboarded;
 
     private boolean githubConnected;
+
+    private LocalDateTime deletedAt;
 
     // 희망 직무
     @Enumerated(EnumType.STRING)
@@ -141,5 +145,22 @@ public class User extends BaseEntity {
         this.portfolioFileName = portfolioFileName;
         this.portfolioUploadedAt = portfolioUploadedAt;
         this.isOnboarded = true;
+    }
+
+    public void updateMyPageProfile(String name, Integer age, String profileImageUrl) {
+        this.nickname = name;
+        this.username = name;
+        if (age != null) {
+            this.age = age;
+        }
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    public void withdraw() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public boolean isWithdrawn() {
+        return deletedAt != null;
     }
 }
