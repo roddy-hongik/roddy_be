@@ -69,7 +69,8 @@ public class AuthController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "구글 로그인 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이메일 미동의 또는 다른 로그인 방식으로 가입된 계정", content = @Content(schema = @Schema())),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "유효하지 않은 구글 액세스 토큰", content = @Content(schema = @Schema()))
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "유효하지 않은 구글 액세스 토큰", content = @Content(schema = @Schema())),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "504", description = "구글 사용자 정보 조회 타임아웃", content = @Content(schema = @Schema()))
     })
     public ApiResponse<SocialLoginResponse> googleLogin(@Valid @RequestBody SocialLoginRequest request) {
         return ApiResponse.onSuccess("구글 로그인이 완료되었습니다.", socialAuthService.loginWithGoogle(request.accessToken()));
@@ -83,7 +84,8 @@ public class AuthController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "카카오 로그인 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이메일 미동의 또는 다른 로그인 방식으로 가입된 계정", content = @Content(schema = @Schema())),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "유효하지 않은 카카오 액세스 토큰", content = @Content(schema = @Schema()))
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "유효하지 않은 카카오 액세스 토큰", content = @Content(schema = @Schema())),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "504", description = "카카오 사용자 정보 조회 타임아웃", content = @Content(schema = @Schema()))
     })
     public ApiResponse<SocialLoginResponse> kakaoLogin(@Valid @RequestBody SocialLoginRequest request) {
         return ApiResponse.onSuccess("카카오 로그인이 완료되었습니다.", socialAuthService.loginWithKakao(request.accessToken()));

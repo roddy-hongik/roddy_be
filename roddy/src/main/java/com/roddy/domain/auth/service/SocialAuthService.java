@@ -4,16 +4,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.roddy.domain.auth.dto.response.LoginResponse;
 import com.roddy.domain.auth.dto.response.SocialLoginResponse;
 import com.roddy.domain.auth.entity.User;
-import com.roddy.domain.auth.repository.UserRepository;
 import com.roddy.domain.enums.SocialType;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
 import com.roddy.global.apiPayload.exception.GeneralException;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -23,30 +20,36 @@ import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 @Service
-@RequiredArgsConstructor
 public class SocialAuthService {
 
     private static final Duration SOCIAL_API_TIMEOUT = Duration.ofSeconds(5);
-    private static final String GOOGLE_BASE_URL = "https://openidconnect.googleapis.com";
-    private static final String KAKAO_BASE_URL = "https://kapi.kakao.com";
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
+    private final SocialUserAccountService socialUserAccountService;
+    private final WebClient googleWebClient;
+    private final WebClient kakaoWebClient;
 
-    private final WebClient googleWebClient = WebClient.builder()
-            .baseUrl(GOOGLE_BASE_URL)
-            .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-            .defaultHeader(HttpHeaders.USER_AGENT, "roddy-backend")
-            .build();
+    public SocialAuthService(
+            AuthService authService,
+            SocialUserAccountService socialUserAccountService,
+            WebClient.Builder webClientBuilder,
+            @Value("${app.oauth2.google-base-url:https://openidconnect.googleapis.com}") String googleBaseUrl,
+            @Value("${app.oauth2.kakao-base-url:https://kapi.kakao.com}") String kakaoBaseUrl
+    ) {
+        this.authService = authService;
+        this.socialUserAccountService = socialUserAccountService;
+        this.googleWebClient = webClientBuilder.clone()
+                .baseUrl(googleBaseUrl)
+                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .defaultHeader(HttpHeaders.USER_AGENT, "roddy-backend")
+                .build();
+        this.kakaoWebClient = webClientBuilder.clone()
+                .baseUrl(kakaoBaseUrl)
+                .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+                .defaultHeader(HttpHeaders.USER_AGENT, "roddy-backend")
+                .build();
+    }
 
-    private final WebClient kakaoWebClient = WebClient.builder()
-            .baseUrl(KAKAO_BASE_URL)
-            .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-            .defaultHeader(HttpHeaders.USER_AGENT, "roddy-backend")
-            .build();
-
-    @Transactional
     public SocialLoginResponse loginWithGoogle(String providerAccessToken) {
         GoogleUserInfo googleUserInfo = fetchGoogleUserInfo(providerAccessToken);
 
@@ -64,7 +67,7 @@ public class SocialAuthService {
             );
         }
 
-        User user = resolveOrCreateSocialUser(
+        User user = socialUserAccountService.resolveOrCreateSocialUser(
                 SocialType.GOOGLE,
                 googleUserInfo.sub(),
                 googleUserInfo.email(),
@@ -75,7 +78,6 @@ public class SocialAuthService {
         return SocialLoginResponse.from(loginResponse, user);
     }
 
-    @Transactional
     public SocialLoginResponse loginWithKakao(String providerAccessToken) {
         KakaoUserInfo kakaoUserInfo = fetchKakaoUserInfo(providerAccessToken);
         KakaoAccount kakaoAccount = kakaoUserInfo.kakaoAccount();
@@ -97,7 +99,7 @@ public class SocialAuthService {
             );
         }
 
-        User user = resolveOrCreateSocialUser(
+        User user = socialUserAccountService.resolveOrCreateSocialUser(
                 SocialType.KAKAO,
                 socialId,
                 email,
@@ -106,44 +108,6 @@ public class SocialAuthService {
 
         LoginResponse loginResponse = authService.issueTokens(user);
         return SocialLoginResponse.from(loginResponse, user);
-    }
-
-    User resolveOrCreateSocialUser(
-            SocialType socialType,
-            String socialId,
-            String email,
-            String name
-    ) {
-        return userRepository.findBySocialTypeAndSocialIdAndDeletedAtIsNull(socialType, socialId)
-                .orElseGet(() -> userRepository.findByEmailAndDeletedAtIsNull(email)
-                        .map(existingUser -> validateExistingSocialUser(existingUser, socialType))
-                        .orElseGet(() -> userRepository.save(
-                                User.createSocialUser(
-                                        name,
-                                        email,
-                                        createDummyPassword(),
-                                        socialType,
-                                        socialId
-                                )
-                        )));
-    }
-
-    private User validateExistingSocialUser(User existingUser, SocialType socialType) {
-        if (existingUser.getSocialType() == socialType) {
-            return existingUser;
-        }
-
-        if (existingUser.getSocialType() == SocialType.LOCAL) {
-            throw new GeneralException(
-                    GeneralErrorCode.INVALID_PARAMETER,
-                    "이미 이메일/비밀번호로 가입된 계정입니다. 로컬 로그인을 이용해주세요."
-            );
-        }
-
-        throw new GeneralException(
-                GeneralErrorCode.INVALID_PARAMETER,
-                "이미 " + toKoreanProviderName(existingUser.getSocialType()) + " 계정으로 가입된 이메일입니다. 해당 소셜 로그인을 이용해주세요."
-        );
     }
 
     private GoogleUserInfo fetchGoogleUserInfo(String providerAccessToken) {
@@ -232,27 +196,27 @@ public class SocialAuthService {
             return kakaoUserInfo.properties().nickname();
         }
 
-        return fallbackEmail;
+        return deriveFallbackNickname(fallbackEmail);
     }
 
     private String defaultDisplayName(String candidate, String fallbackEmail) {
-        return hasText(candidate) ? candidate : fallbackEmail;
+        return hasText(candidate) ? candidate : deriveFallbackNickname(fallbackEmail);
     }
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
 
-    private String createDummyPassword() {
-        return passwordEncoder.encode(UUID.randomUUID().toString());
-    }
+    private String deriveFallbackNickname(String email) {
+        if (hasText(email)) {
+            int separatorIndex = email.indexOf('@');
+            String localPart = separatorIndex > 0 ? email.substring(0, separatorIndex) : email;
+            if (hasText(localPart)) {
+                return localPart;
+            }
+        }
 
-    private String toKoreanProviderName(SocialType socialType) {
-        return switch (socialType) {
-            case GOOGLE -> "구글";
-            case KAKAO -> "카카오";
-            case LOCAL -> "로컬";
-        };
+        return "user-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     private record GoogleUserInfo(
