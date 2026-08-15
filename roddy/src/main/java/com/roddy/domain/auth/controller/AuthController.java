@@ -4,9 +4,12 @@ import com.roddy.domain.auth.dto.request.LoginRequest;
 import com.roddy.domain.auth.dto.request.LogoutRequest;
 import com.roddy.domain.auth.dto.request.ReissueTokenRequest;
 import com.roddy.domain.auth.dto.request.SignupRequest;
+import com.roddy.domain.auth.dto.request.SocialLoginRequest;
 import com.roddy.domain.auth.dto.response.LoginResponse;
 import com.roddy.domain.auth.dto.response.ReissueTokenResponse;
+import com.roddy.domain.auth.dto.response.SocialLoginResponse;
 import com.roddy.domain.auth.service.AuthService;
+import com.roddy.domain.auth.service.SocialAuthService;
 import com.roddy.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final SocialAuthService socialAuthService;
 
     @PostMapping("/signup")
     @Operation(
@@ -55,6 +59,34 @@ public class AuthController {
     })
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.onSuccess("로그인이 완료되었습니다.", authService.login(request));
+    }
+
+    @PostMapping("/google")
+    @Operation(
+            summary = "구글 소셜 로그인",
+            description = "프론트에서 발급받은 구글 액세스 토큰으로 사용자 정보를 조회한 뒤 Roddy 토큰과 사용자 정보를 반환합니다."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "구글 로그인 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이메일 미동의 또는 다른 로그인 방식으로 가입된 계정", content = @Content(schema = @Schema())),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "유효하지 않은 구글 액세스 토큰", content = @Content(schema = @Schema()))
+    })
+    public ApiResponse<SocialLoginResponse> googleLogin(@Valid @RequestBody SocialLoginRequest request) {
+        return ApiResponse.onSuccess("구글 로그인이 완료되었습니다.", socialAuthService.loginWithGoogle(request.accessToken()));
+    }
+
+    @PostMapping("/kakao")
+    @Operation(
+            summary = "카카오 소셜 로그인",
+            description = "프론트에서 발급받은 카카오 액세스 토큰으로 사용자 정보를 조회한 뒤 Roddy 토큰과 사용자 정보를 반환합니다."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "카카오 로그인 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "이메일 미동의 또는 다른 로그인 방식으로 가입된 계정", content = @Content(schema = @Schema())),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "유효하지 않은 카카오 액세스 토큰", content = @Content(schema = @Schema()))
+    })
+    public ApiResponse<SocialLoginResponse> kakaoLogin(@Valid @RequestBody SocialLoginRequest request) {
+        return ApiResponse.onSuccess("카카오 로그인이 완료되었습니다.", socialAuthService.loginWithKakao(request.accessToken()));
     }
 
     @PostMapping("/reissue")
