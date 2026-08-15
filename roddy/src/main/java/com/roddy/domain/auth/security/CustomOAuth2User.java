@@ -25,6 +25,16 @@ public record CustomOAuth2User(
 
     @Override
     public String getName() {
-        return String.valueOf(attributes.getOrDefault("sub", user.getEmail()));
+        Object sub = attributes.get("sub");
+        if (sub != null) {
+            return String.valueOf(sub);
+        }
+
+        Object id = attributes.get("id");
+        if (id != null) {
+            return String.valueOf(id);
+        }
+
+        return user.getEmail();
     }
 }

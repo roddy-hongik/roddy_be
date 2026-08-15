@@ -18,7 +18,15 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "users")
+@Table(
+        name = "users",
+        indexes = {
+                @Index(name = "idx_users_social_type_social_id", columnList = "social_type, social_id")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_users_social_type_social_id", columnNames = {"social_type", "social_id"})
+        }
+)
 public class User extends BaseEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -154,6 +162,10 @@ public class User extends BaseEntity {
             this.age = age;
         }
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public void linkSocialId(String socialId) {
+        this.socialId = socialId;
     }
 
     public void withdraw() {

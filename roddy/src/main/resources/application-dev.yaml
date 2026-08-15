@@ -47,6 +47,8 @@ jwt:
 app:
   oauth2:
     redirect-uri: ${APP_OAUTH2_REDIRECT_URI:http://localhost:3000/oauth2/redirect}
+    google-base-url: ${APP_OAUTH2_GOOGLE_BASE_URL:https://openidconnect.googleapis.com}
+    kakao-base-url: ${APP_OAUTH2_KAKAO_BASE_URL:https://kapi.kakao.com}
   github:
     client-id: ${GITHUB_CLIENT_ID:}
     client-secret: ${GITHUB_CLIENT_SECRET:}
