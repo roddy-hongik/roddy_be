@@ -323,7 +323,7 @@ class StudyControllerTest {
     void 모집자가_지원자를_수락할_수_있다() throws Exception {
         User author = saveUser("approve-author@example.com", "작성자");
         User applicant = saveUser("approve-user@example.com", "지원자");
-        StudyPost studyPost = saveStudy(author, "승인 테스트", "내용", StudyMode.ONLINE, "Discord", LocalDateTime.now().plusDays(2), 4, 1, StudyRecruitStatus.RECRUITING);
+        StudyPost studyPost = saveStudy(author, "승인 테스트", "내용", StudyMode.ONLINE, "Discord", LocalDateTime.now().plusDays(2), 1, 1, StudyRecruitStatus.RECRUITING);
         StudyApplication application = saveApplication(studyPost, applicant, StudyApplicationStatus.APPLIED);
 
         mockMvc.perform(patch("/api/studies/{studyId}/applications/{applicationId}", studyPost.getId(), application.getId())
@@ -334,6 +334,11 @@ class StudyControllerTest {
                 .andExpect(jsonPath("$.result.status").value("ACCEPTED"))
                 .andExpect(jsonPath("$.result.statusDisplayName").value("수락"))
                 .andExpect(jsonPath("$.result.applicantCount").value(1));
+
+        mockMvc.perform(get("/api/studies/{studyId}", studyPost.getId())
+                        .with(user(new UserDetailsImpl(author))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.status").value("CLOSED"));
     }
 
     @Test
@@ -382,6 +387,22 @@ class StudyControllerTest {
                         .content(objectMapper.writeValueAsString(new UpdateApplicationStatusRequest("REJECTED"))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.isSuccess").value(false));
+    }
+
+    @Test
+    void 거절된_지원_취소시_다른_활성_지원자_카운트는_유지된다() throws Exception {
+        User author = saveUser("cancel-rejected-author@example.com", "작성자");
+        User rejectedApplicant = saveUser("cancel-rejected-user@example.com", "거절지원자");
+        User activeApplicant = saveUser("cancel-active-user@example.com", "활성지원자");
+        StudyPost studyPost = saveStudy(author, "거절 취소 테스트", "내용", StudyMode.ONLINE, null, LocalDateTime.now().plusDays(2), 4, 1, StudyRecruitStatus.RECRUITING);
+        saveApplication(studyPost, rejectedApplicant, StudyApplicationStatus.REJECTED);
+        saveApplication(studyPost, activeApplicant, StudyApplicationStatus.APPLIED);
+
+        mockMvc.perform(delete("/api/studies/{studyId}/applications/me", studyPost.getId())
+                        .with(user(new UserDetailsImpl(rejectedApplicant))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.status").value("CANCELED"))
+                .andExpect(jsonPath("$.result.applicantCount").value(1));
     }
 
     @Test

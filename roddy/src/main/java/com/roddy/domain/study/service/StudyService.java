@@ -194,8 +194,11 @@ public class StudyService {
             throw new GeneralException(GeneralErrorCode.STUDY_APPLICATION_ALREADY_CANCELED);
         }
 
+        boolean shouldDecreaseApplicantCount = studyApplication.isApplied() || studyApplication.isAccepted();
         studyApplication.cancel();
-        studyPost.decreaseApplicantCount();
+        if (shouldDecreaseApplicantCount) {
+            studyPost.decreaseApplicantCount();
+        }
 
         return new StudyApplicationResponse(
                 studyApplication.getId(),
