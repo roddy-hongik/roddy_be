@@ -22,11 +22,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
 
@@ -207,7 +210,8 @@ class StudyControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.id").value(studyPost.getId()))
                 .andExpect(jsonPath("$.result.authorName").value("상세작성자"))
-                .andExpect(jsonPath("$.result.myApplicationStatus").value(nullValue()));
+                .andExpect(jsonPath("$.result.myApplicationStatus").value(nullValue()))
+                .andExpect(jsonPath("$.result.applicants.length()").value(0));
     }
 
     @Test
@@ -222,6 +226,22 @@ class StudyControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.myApplicationStatus").value("APPLIED"))
                 .andExpect(jsonPath("$.result.myApplicationStatusDisplayName").value("지원 완료"));
+    }
+
+    @Test
+    void 작성자가_상세_조회시_지원자_목록_반환() throws Exception {
+        User author = saveUser("manager-author@example.com", "모집자");
+        User applicant = saveUser("manager-applicant@example.com", "지원자A");
+        StudyPost studyPost = saveStudy(author, "모집자 상세", "내용", StudyMode.ONLINE, "Discord", LocalDateTime.now().plusDays(2), 4, 1, StudyRecruitStatus.RECRUITING);
+        saveApplication(studyPost, applicant, StudyApplicationStatus.APPLIED);
+
+        mockMvc.perform(get("/api/studies/{studyId}", studyPost.getId())
+                        .with(user(new UserDetailsImpl(author))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isAuthor").value(true))
+                .andExpect(jsonPath("$.result.applicants.length()").value(1))
+                .andExpect(jsonPath("$.result.applicants[0].applicantName").value("지원자A"))
+                .andExpect(jsonPath("$.result.applicants[0].status").value("APPLIED"));
     }
 
     @Test
@@ -300,6 +320,71 @@ class StudyControllerTest {
     }
 
     @Test
+    void 모집자가_지원자를_수락할_수_있다() throws Exception {
+        User author = saveUser("approve-author@example.com", "작성자");
+        User applicant = saveUser("approve-user@example.com", "지원자");
+        StudyPost studyPost = saveStudy(author, "승인 테스트", "내용", StudyMode.ONLINE, "Discord", LocalDateTime.now().plusDays(2), 4, 1, StudyRecruitStatus.RECRUITING);
+        StudyApplication application = saveApplication(studyPost, applicant, StudyApplicationStatus.APPLIED);
+
+        mockMvc.perform(patch("/api/studies/{studyId}/applications/{applicationId}", studyPost.getId(), application.getId())
+                        .with(user(new UserDetailsImpl(author)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateApplicationStatusRequest("ACCEPTED"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.status").value("ACCEPTED"))
+                .andExpect(jsonPath("$.result.statusDisplayName").value("수락"))
+                .andExpect(jsonPath("$.result.applicantCount").value(1));
+    }
+
+    @Test
+    void 모집자가_지원자를_거절하면_활성_지원자수가_감소한다() throws Exception {
+        User author = saveUser("reject-author@example.com", "작성자");
+        User applicant = saveUser("reject-user@example.com", "지원자");
+        StudyPost studyPost = saveStudy(author, "거절 테스트", "내용", StudyMode.ONLINE, "Discord", LocalDateTime.now().plusDays(2), 4, 1, StudyRecruitStatus.RECRUITING);
+        StudyApplication application = saveApplication(studyPost, applicant, StudyApplicationStatus.APPLIED);
+
+        mockMvc.perform(patch("/api/studies/{studyId}/applications/{applicationId}", studyPost.getId(), application.getId())
+                        .with(user(new UserDetailsImpl(author)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateApplicationStatusRequest("REJECTED"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.status").value("REJECTED"))
+                .andExpect(jsonPath("$.result.statusDisplayName").value("거절"))
+                .andExpect(jsonPath("$.result.applicantCount").value(0));
+    }
+
+    @Test
+    void 작성자가_아닌_사용자는_지원_상태를_변경할_수_없다() throws Exception {
+        User author = saveUser("forbidden-author@example.com", "작성자");
+        User applicant = saveUser("forbidden-applicant@example.com", "지원자");
+        User otherUser = saveUser("forbidden-other@example.com", "다른유저");
+        StudyPost studyPost = saveStudy(author, "권한 테스트", "내용", StudyMode.ONLINE, "Discord", LocalDateTime.now().plusDays(2), 4, 1, StudyRecruitStatus.RECRUITING);
+        StudyApplication application = saveApplication(studyPost, applicant, StudyApplicationStatus.APPLIED);
+
+        mockMvc.perform(patch("/api/studies/{studyId}/applications/{applicationId}", studyPost.getId(), application.getId())
+                        .with(user(new UserDetailsImpl(otherUser)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateApplicationStatusRequest("ACCEPTED"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.isSuccess").value(false));
+    }
+
+    @Test
+    void 이미_처리된_지원은_다시_변경할_수_없다() throws Exception {
+        User author = saveUser("processed-author@example.com", "작성자");
+        User applicant = saveUser("processed-applicant@example.com", "지원자");
+        StudyPost studyPost = saveStudy(author, "처리 완료 테스트", "내용", StudyMode.ONLINE, "Discord", LocalDateTime.now().plusDays(2), 4, 1, StudyRecruitStatus.RECRUITING);
+        StudyApplication application = saveApplication(studyPost, applicant, StudyApplicationStatus.ACCEPTED);
+
+        mockMvc.perform(patch("/api/studies/{studyId}/applications/{applicationId}", studyPost.getId(), application.getId())
+                        .with(user(new UserDetailsImpl(author)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new UpdateApplicationStatusRequest("REJECTED"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.isSuccess").value(false));
+    }
+
+    @Test
     void 모집글_작성자가_모집_완료_처리_성공() throws Exception {
         User author = saveUser("close-author@example.com", "작성자");
         StudyPost studyPost = saveStudy(author, "마감 처리", "내용", StudyMode.ONLINE, null, LocalDateTime.now().plusDays(2), 4, 1, StudyRecruitStatus.RECRUITING);
@@ -319,6 +404,31 @@ class StudyControllerTest {
         mockMvc.perform(patch("/api/studies/{studyId}/close", studyPost.getId())
                         .with(user(new UserDetailsImpl(otherUser))))
                 .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.isSuccess").value(false));
+    }
+
+    @Test
+    void 모집글_작성자가_스터디를_재오픈할_수_있다() throws Exception {
+        User author = saveUser("reopen-author@example.com", "작성자");
+        StudyPost studyPost = saveStudy(author, "재오픈 테스트", "내용", StudyMode.ONLINE, null, LocalDateTime.now().plusDays(2), 4, 1, StudyRecruitStatus.CLOSED);
+
+        mockMvc.perform(patch("/api/studies/{studyId}/reopen", studyPost.getId())
+                        .with(user(new UserDetailsImpl(author))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.status").value("RECRUITING"))
+                .andExpect(jsonPath("$.result.statusDisplayName").value("모집중"));
+    }
+
+    @Test
+    void 확정_인원이_가득찬_스터디는_재오픈할_수_없다() throws Exception {
+        User author = saveUser("reopen-full-author@example.com", "작성자");
+        User applicant = saveUser("reopen-full-applicant@example.com", "지원자");
+        StudyPost studyPost = saveStudy(author, "재오픈 불가 테스트", "내용", StudyMode.ONLINE, null, LocalDateTime.now().plusDays(2), 1, 1, StudyRecruitStatus.CLOSED);
+        saveApplication(studyPost, applicant, StudyApplicationStatus.ACCEPTED);
+
+        mockMvc.perform(patch("/api/studies/{studyId}/reopen", studyPost.getId())
+                        .with(user(new UserDetailsImpl(author))))
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.isSuccess").value(false));
     }
 
@@ -373,7 +483,11 @@ class StudyControllerTest {
 
     private StudyApplication saveApplication(StudyPost studyPost, User applicant, StudyApplicationStatus status) {
         StudyApplication application = StudyApplication.create(studyPost, applicant);
-        if (status == StudyApplicationStatus.CANCELED) {
+        if (status == StudyApplicationStatus.ACCEPTED) {
+            application.accept();
+        } else if (status == StudyApplicationStatus.REJECTED) {
+            application.reject();
+        } else if (status == StudyApplicationStatus.CANCELED) {
             application.cancel();
         }
         return studyApplicationRepository.save(application);
@@ -387,5 +501,19 @@ class StudyControllerTest {
             LocalDateTime scheduledAt,
             Integer capacity
     ) {
+    }
+
+    private record UpdateApplicationStatusRequest(
+            String status
+    ) {
+    }
+
+    @TestConfiguration
+    static class TestWebClientConfig {
+
+        @Bean
+        WebClient.Builder webClientBuilder() {
+            return WebClient.builder();
+        }
     }
 }
