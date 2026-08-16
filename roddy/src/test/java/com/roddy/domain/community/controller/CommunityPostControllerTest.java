@@ -32,8 +32,11 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
@@ -162,6 +165,101 @@ class CommunityPostControllerTest {
                         .with(user(new UserDetailsImpl(user))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.isSuccess").value(false));
+    }
+
+    @Test
+    void 로드맵_생성후_상세조회시_프론트_확장_필드가_반영된다() throws Exception {
+        User user = saveUser("roadmap-detail@example.com", "로드맵작성자");
+
+        String createResponse = mockMvc.perform(multipart("/api/community/posts")
+                        .param("postCategory", "ROADMAP")
+                        .param("jobCategory", "B2C")
+                        .param("title", "백엔드 로드맵")
+                        .param("content", "로드맵 본문")
+                        .param("tags", "java", "spring")
+                        .param("roadmapId", "rm-101")
+                        .param("roadmapTitle", "주니어 백엔드 로드맵")
+                        .param("summary", "핵심 요약")
+                        .param("description", "상세 설명")
+                        .param("targetJob", "백엔드")
+                        .param("targetCompany", "토스")
+                        .param("recommendedSkills", "Java", "Spring")
+                        .param("roadmapStepsJson", objectMapper.writeValueAsString(List.of(
+                                Map.of(
+                                        "stage", "1단계",
+                                        "goal", "기초 다지기",
+                                        "topics", List.of("Java", "OOP"),
+                                        "outputs", List.of("미니 프로젝트")
+                                )
+                        )))
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long postId = extractResultId(createResponse);
+
+        mockMvc.perform(get("/api/community/posts/{postId}", postId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.type").value("roadmap"))
+                .andExpect(jsonPath("$.result.tag").value("b2c"))
+                .andExpect(jsonPath("$.result.tags", hasItem("java")))
+                .andExpect(jsonPath("$.result.roadmapId").value("rm-101"))
+                .andExpect(jsonPath("$.result.roadmapTitle").value("주니어 백엔드 로드맵"))
+                .andExpect(jsonPath("$.result.summary").value("핵심 요약"))
+                .andExpect(jsonPath("$.result.targetJob").value("백엔드"))
+                .andExpect(jsonPath("$.result.targetCompany").value("토스"))
+                .andExpect(jsonPath("$.result.recommendedSkills[0]").value("Java"))
+                .andExpect(jsonPath("$.result.roadmapSteps[0].stage").value("1단계"))
+                .andExpect(jsonPath("$.result.roadmapSteps[0].topics[0]").value("Java"))
+                .andExpect(jsonPath("$.result.description").value("상세 설명"))
+                .andExpect(jsonPath("$.result.commentCount").value(0))
+                .andExpect(jsonPath("$.result.excerpt").value("로드맵 본문"));
+    }
+
+    @Test
+    void 인터뷰_생성후_상세조회시_프론트_확장_필드가_반영된다() throws Exception {
+        User user = saveUser("interview-detail@example.com", "인터뷰상세작성자");
+
+        String createResponse = mockMvc.perform(multipart("/api/community/posts")
+                        .param("postCategory", "PASS_REVIEW_INTERVIEW")
+                        .param("jobCategory", "FINTECH")
+                        .param("title", "토스 백엔드 최종합격")
+                        .param("content", "인터뷰 전체 본문")
+                        .param("tags", "합격", "후기")
+                        .param("interviewSubtype", "INCUMBENT")
+                        .param("company", "토스")
+                        .param("jobRole", "백엔드")
+                        .param("preparationPeriod", "4개월")
+                        .param("techStacks", "Java", "Spring")
+                        .param("processSummary", "서류-과제-최종면접")
+                        .param("background", "이직 준비 중")
+                        .param("preparationProcess", "CS와 프로젝트 정리")
+                        .param("experienceDetail", "트랜잭션과 분산락 질문이 나왔다")
+                        .param("advice", "실제 장애 대응 경험을 정리해두면 좋다")
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long postId = extractResultId(createResponse);
+
+        mockMvc.perform(get("/api/community/posts/{postId}", postId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.type").value("interview"))
+                .andExpect(jsonPath("$.result.tag").value("fintech"))
+                .andExpect(jsonPath("$.result.subtype").value("incumbent"))
+                .andExpect(jsonPath("$.result.company").value("토스"))
+                .andExpect(jsonPath("$.result.jobRole").value("백엔드"))
+                .andExpect(jsonPath("$.result.preparationPeriod").value("4개월"))
+                .andExpect(jsonPath("$.result.techStacks[0]").value("Java"))
+                .andExpect(jsonPath("$.result.processSummary").value("서류-과제-최종면접"))
+                .andExpect(jsonPath("$.result.background").value("이직 준비 중"))
+                .andExpect(jsonPath("$.result.preparationProcess").value("CS와 프로젝트 정리"))
+                .andExpect(jsonPath("$.result.experienceDetail").value("트랜잭션과 분산락 질문이 나왔다"))
+                .andExpect(jsonPath("$.result.advice").value("실제 장애 대응 경험을 정리해두면 좋다"));
     }
 
     @Test
@@ -624,6 +722,10 @@ class CommunityPostControllerTest {
         }
 
         return communityPostRepository.save(post);
+    }
+
+    private Long extractResultId(String response) throws Exception {
+        return objectMapper.readTree(response).path("result").path("id").asLong();
     }
 
     private record CommentRequest(String content, Long parentCommentId) {
