@@ -37,6 +37,8 @@ public enum GeneralErrorCode implements BaseErrorCode {
     COMMUNITY_POST_ALREADY_REPORTED(HttpStatus.CONFLICT, "COMMUNITY_4091", "이미 신고한 게시글입니다."),
     COMMUNITY_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMUNITY_4042", "댓글을 찾을 수 없습니다."),
     COMMUNITY_COMMENT_PARENT_INVALID(HttpStatus.BAD_REQUEST, "COMMUNITY_4001", "대댓글은 최상위 댓글에만 작성할 수 있습니다."),
+    COMMUNITY_COMMENT_ALREADY_REPORTED(HttpStatus.CONFLICT, "COMMUNITY_4092", "이미 신고한 댓글입니다."),
+    COMMUNITY_COMMENT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "COMMUNITY_4031", "본인 댓글만 삭제할 수 있습니다."),
 
     // 스터디 에러
     STUDY_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4041", "스터디 모집글을 찾을 수 없습니다."),

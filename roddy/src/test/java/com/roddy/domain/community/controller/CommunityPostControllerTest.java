@@ -11,6 +11,7 @@ import com.roddy.domain.community.enums.CommunityJobCategory;
 import com.roddy.domain.community.enums.CommunityInterviewSubtype;
 import com.roddy.domain.community.enums.CommunityPostCategory;
 import com.roddy.domain.community.repository.CommunityCommentRepository;
+import com.roddy.domain.community.repository.CommunityCommentReportRepository;
 import com.roddy.domain.community.repository.CommunityPostImageRepository;
 import com.roddy.domain.community.repository.CommunityPostLikeRepository;
 import com.roddy.domain.community.repository.CommunityPostReportRepository;
@@ -38,6 +39,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -69,6 +71,9 @@ class CommunityPostControllerTest {
     private CommunityCommentRepository communityCommentRepository;
 
     @Autowired
+    private CommunityCommentReportRepository communityCommentReportRepository;
+
+    @Autowired
     private CommunityPostImageRepository communityPostImageRepository;
 
     @Autowired
@@ -88,6 +93,7 @@ class CommunityPostControllerTest {
 
         communityPostLikeRepository.deleteAll();
         communityPostReportRepository.deleteAll();
+        communityCommentReportRepository.deleteAll();
         communityCommentRepository.deleteAll();
         communityPostImageRepository.deleteAll();
         communityPostRepository.deleteAll();
@@ -432,6 +438,79 @@ class CommunityPostControllerTest {
                 .andExpect(jsonPath("$.result[1].content").value("첫 댓글의 답글"))
                 .andExpect(jsonPath("$.result[1].depth").value(1))
                 .andExpect(jsonPath("$.result[1].parentId").value(rootCommentId));
+    }
+
+    @Test
+    void 본인_댓글_삭제_성공() throws Exception {
+        User user = saveUser("comment-delete@example.com", "댓글삭제사용자");
+        CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "댓글 삭제 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("삭제할 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long commentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(delete("/api/community/comments/{commentId}", commentId)
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true));
+
+        mockMvc.perform(get("/api/community/posts/{postId}/comments", post.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.length()").value(0));
+    }
+
+    @Test
+    void 타인_댓글_삭제는_실패한다() throws Exception {
+        User writer = saveUser("comment-owner@example.com", "댓글주인");
+        User other = saveUser("comment-other@example.com", "다른사용자");
+        CommunityPost post = savePost(writer, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "댓글 권한 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(writer)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("삭제 불가 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long commentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(delete("/api/community/comments/{commentId}", commentId)
+                        .with(user(new UserDetailsImpl(other))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.isSuccess").value(false));
+    }
+
+    @Test
+    void 댓글_중복_신고_방지() throws Exception {
+        User user = saveUser("comment-report@example.com", "댓글신고사용자");
+        CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "댓글 신고 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("신고 대상 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long commentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(post("/api/community/comments/{commentId}/report", commentId)
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.reported").value(true));
+
+        mockMvc.perform(post("/api/community/comments/{commentId}/report", commentId)
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.isSuccess").value(false));
     }
 
     @Test

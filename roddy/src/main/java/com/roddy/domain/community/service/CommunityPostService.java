@@ -13,6 +13,7 @@ import com.roddy.domain.community.dto.response.CreateCommunityPostResponse;
 import com.roddy.domain.community.dto.response.ReportPostResponse;
 import com.roddy.domain.community.dto.response.TogglePostLikeResponse;
 import com.roddy.domain.community.entity.CommunityComment;
+import com.roddy.domain.community.entity.CommunityCommentReport;
 import com.roddy.domain.community.entity.CommunityInterviewPostDetail;
 import com.roddy.domain.community.entity.CommunityPost;
 import com.roddy.domain.community.entity.CommunityPostImage;
@@ -20,6 +21,7 @@ import com.roddy.domain.community.entity.CommunityPostLike;
 import com.roddy.domain.community.entity.CommunityPostReport;
 import com.roddy.domain.community.entity.CommunityRoadmapPostDetail;
 import com.roddy.domain.community.repository.CommunityCommentRepository;
+import com.roddy.domain.community.repository.CommunityCommentReportRepository;
 import com.roddy.domain.community.repository.CommunityPostLikeRepository;
 import com.roddy.domain.community.repository.CommunityPostReportRepository;
 import com.roddy.domain.community.repository.CommunityPostRepository;
@@ -54,6 +56,7 @@ public class CommunityPostService {
 
     private final CommunityPostRepository communityPostRepository;
     private final CommunityCommentRepository communityCommentRepository;
+    private final CommunityCommentReportRepository communityCommentReportRepository;
     private final CommunityPostLikeRepository communityPostLikeRepository;
     private final CommunityPostReportRepository communityPostReportRepository;
     private final UserRepository userRepository;
@@ -202,9 +205,41 @@ public class CommunityPostService {
                 .toList();
     }
 
+    @Transactional
+    public void deleteComment(Long commentId, Long userId) {
+        CommunityComment comment = getCommentOrThrow(commentId);
+        if (!comment.isAuthor(userId)) {
+            throw new GeneralException(GeneralErrorCode.COMMUNITY_COMMENT_DELETE_FORBIDDEN);
+        }
+        communityCommentRepository.delete(comment);
+    }
+
+    @Transactional
+    public ReportPostResponse reportComment(Long commentId, Long userId) {
+        CommunityComment comment = getCommentOrThrow(commentId);
+        User user = getUserOrThrow(userId);
+
+        if (communityCommentReportRepository.existsByComment_IdAndUser_Id(commentId, userId)) {
+            throw new GeneralException(GeneralErrorCode.COMMUNITY_COMMENT_ALREADY_REPORTED);
+        }
+
+        try {
+            communityCommentReportRepository.save(CommunityCommentReport.create(comment, user, null));
+        } catch (DataIntegrityViolationException exception) {
+            throw new GeneralException(GeneralErrorCode.COMMUNITY_COMMENT_ALREADY_REPORTED);
+        }
+
+        return new ReportPostResponse(true);
+    }
+
     private CommunityPost getPostOrThrow(Long postId) {
         return communityPostRepository.findDetailById(postId)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.COMMUNITY_POST_NOT_FOUND));
+    }
+
+    private CommunityComment getCommentOrThrow(Long commentId) {
+        return communityCommentRepository.findById(commentId)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.COMMUNITY_COMMENT_NOT_FOUND));
     }
 
     private User getUserOrThrow(Long userId) {
