@@ -78,6 +78,7 @@ public class StudyService {
     public StudyPostDetailResponse getStudyPostDetail(Long studyId, Long currentUserId) {
         StudyPost studyPost = studyPostRepository.findDetailById(studyId)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.STUDY_NOT_FOUND));
+        boolean isAuthor = currentUserId != null && studyPost.isAuthor(currentUserId);
 
         StudyApplicationStatus myStatus = null;
         if (currentUserId != null) {
@@ -85,6 +86,12 @@ public class StudyService {
                     .map(StudyApplication::getStatus)
                     .orElse(null);
         }
+
+        List<StudyApplicantSummaryResponse> applicants = isAuthor
+                ? studyApplicationRepository.findAllByStudyPostIdOrderByCreatedAtAsc(studyId).stream()
+                .map(this::toStudyApplicantSummary)
+                .toList()
+                : List.of();
 
         return new StudyPostDetailResponse(
                 studyPost.getId(),
@@ -102,8 +109,8 @@ public class StudyService {
                 studyPost.getStatus().getDisplayName(),
                 myStatus == null ? null : myStatus.name(),
                 myStatus == null ? null : myStatus.getDisplayName(),
-                currentUserId != null && studyPost.isAuthor(currentUserId),
-                List.of()
+                isAuthor,
+                applicants
         );
     }
 
@@ -228,6 +235,17 @@ public class StudyService {
                 post.getApplicantCount(),
                 post.getStatus().name(),
                 post.getStatus().getDisplayName(),
+                application.getStatus().name(),
+                application.getStatus().getDisplayName(),
+                application.getCreatedAt()
+        );
+    }
+
+    private StudyApplicantSummaryResponse toStudyApplicantSummary(StudyApplication application) {
+        return new StudyApplicantSummaryResponse(
+                application.getId(),
+                application.getApplicant().getId(),
+                application.getApplicant().getNickname(),
                 application.getStatus().name(),
                 application.getStatus().getDisplayName(),
                 application.getCreatedAt()
