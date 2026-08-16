@@ -1,5 +1,8 @@
 package com.roddy.domain.community.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
 import com.roddy.domain.community.dto.request.CommunityPostSearchCondition;
@@ -20,6 +23,7 @@ import com.roddy.domain.community.entity.CommunityPostImage;
 import com.roddy.domain.community.entity.CommunityPostLike;
 import com.roddy.domain.community.entity.CommunityPostReport;
 import com.roddy.domain.community.entity.CommunityRoadmapPostDetail;
+import com.roddy.domain.community.entity.CommunityRoadmapPostStep;
 import com.roddy.domain.community.repository.CommunityCommentRepository;
 import com.roddy.domain.community.repository.CommunityCommentReportRepository;
 import com.roddy.domain.community.repository.CommunityPostLikeRepository;
@@ -43,6 +47,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -61,6 +66,7 @@ public class CommunityPostService {
     private final CommunityPostReportRepository communityPostReportRepository;
     private final UserRepository userRepository;
     private final S3Uploader s3Uploader;
+    private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     public CommunityPostListResponse getPosts(CommunityPostSearchCondition condition, int page, int size, String sort) {
@@ -117,9 +123,9 @@ public class CommunityPostService {
                 request.getJobCategory(),
                 request.getTitle().trim(),
                 request.getContent().trim(),
-                List.of()
+                request.getTags()
         );
-        attachInitialDetail(post, request);
+        attachTypedDetail(post, request);
 
         List<String> uploadedImageUrls = new ArrayList<>();
         try {
@@ -276,34 +282,38 @@ public class CommunityPostService {
         );
     }
 
-    private void attachInitialDetail(CommunityPost post, CreateCommunityPostRequest request) {
+    private void attachTypedDetail(CommunityPost post, CreateCommunityPostRequest request) {
         if (post.getPostCategory() == CommunityPostCategory.ROADMAP) {
-            post.attachRoadmapDetail(CommunityRoadmapPostDetail.create(
+            validateRoadmapRequest(request);
+            CommunityRoadmapPostDetail roadmapDetail = CommunityRoadmapPostDetail.create(
                     post,
-                    null,
-                    post.getTitle(),
-                    post.getContent(),
-                    post.getContent(),
-                    defaultIfBlank(request.getPosition(), post.getJobCategory().getDisplayName()),
-                    request.getCompany(),
-                    request.getTechStacks()
-            ));
+                    request.getRoadmapId(),
+                    defaultIfBlank(request.getRoadmapTitle(), post.getTitle()),
+                    defaultIfBlank(request.getSummary(), post.getContent()),
+                    defaultIfBlank(request.getDescription(), post.getContent()),
+                    defaultIfBlank(request.getTargetJob(), resolveJobRole(request, post.getJobCategory().getDisplayName())),
+                    defaultIfBlank(request.getTargetCompany(), request.getCompany()),
+                    firstNonEmpty(request.getRecommendedSkills(), request.getTechStacks())
+            );
+            roadmapDetail.replaceSteps(parseRoadmapSteps(roadmapDetail, request.getRoadmapStepsJson()));
+            post.attachRoadmapDetail(roadmapDetail);
             return;
         }
 
         if (post.getPostCategory() == CommunityPostCategory.PASS_REVIEW_INTERVIEW) {
+            validateInterviewRequest(request);
             post.attachInterviewDetail(CommunityInterviewPostDetail.create(
                     post,
-                    CommunityInterviewSubtype.ACCEPTED,
+                    request.getInterviewSubtype() == null ? CommunityInterviewSubtype.ACCEPTED : request.getInterviewSubtype(),
                     defaultIfBlank(request.getCompany(), "미입력"),
-                    defaultIfBlank(request.getPosition(), post.getJobCategory().getDisplayName()),
-                    "미입력",
+                    resolveJobRole(request, post.getJobCategory().getDisplayName()),
+                    defaultIfBlank(request.getPreparationPeriod(), "미입력"),
                     request.getTechStacks(),
-                    post.getContent(),
-                    "",
-                    "",
-                    "",
-                    ""
+                    defaultIfBlank(request.getProcessSummary(), post.getContent()),
+                    defaultIfBlank(request.getBackground(), ""),
+                    defaultIfBlank(request.getPreparationProcess(), ""),
+                    defaultIfBlank(request.getExperienceDetail(), ""),
+                    defaultIfBlank(request.getAdvice(), "")
             ));
         }
     }
@@ -359,6 +369,85 @@ public class CommunityPostService {
         }
         String trimmed = value.trim();
         return trimmed.isBlank() ? defaultValue : trimmed;
+    }
+
+    private String resolveJobRole(CreateCommunityPostRequest request, String defaultValue) {
+        return defaultIfBlank(request.getJobRole(), defaultIfBlank(request.getPosition(), defaultValue));
+    }
+
+    private List<String> firstNonEmpty(List<String> primary, List<String> fallback) {
+        return primary != null && !primary.isEmpty() ? primary : fallback;
+    }
+
+    private void validateRoadmapRequest(CreateCommunityPostRequest request) {
+        if (!hasText(request.getTargetJob()) && !hasText(request.getPosition()) && !hasText(request.getJobRole())) {
+            throw new GeneralException(GeneralErrorCode.INVALID_PARAMETER, "로드맵 글은 목표 직무가 필요합니다.");
+        }
+    }
+
+    private void validateInterviewRequest(CreateCommunityPostRequest request) {
+        if (!hasText(request.getCompany())) {
+            throw new GeneralException(GeneralErrorCode.INVALID_PARAMETER, "인터뷰 글은 회사명이 필요합니다.");
+        }
+        if (!hasText(request.getJobRole()) && !hasText(request.getPosition())) {
+            throw new GeneralException(GeneralErrorCode.INVALID_PARAMETER, "인터뷰 글은 직무가 필요합니다.");
+        }
+        if (!hasText(request.getPreparationPeriod())) {
+            throw new GeneralException(GeneralErrorCode.INVALID_PARAMETER, "인터뷰 글은 준비 기간이 필요합니다.");
+        }
+        if (!hasText(request.getProcessSummary())) {
+            throw new GeneralException(GeneralErrorCode.INVALID_PARAMETER, "인터뷰 글은 진행 요약이 필요합니다.");
+        }
+        if (!hasText(request.getBackground())) {
+            throw new GeneralException(GeneralErrorCode.INVALID_PARAMETER, "인터뷰 글은 배경 정보가 필요합니다.");
+        }
+        if (!hasText(request.getPreparationProcess())) {
+            throw new GeneralException(GeneralErrorCode.INVALID_PARAMETER, "인터뷰 글은 준비 과정이 필요합니다.");
+        }
+        if (!hasText(request.getExperienceDetail())) {
+            throw new GeneralException(GeneralErrorCode.INVALID_PARAMETER, "인터뷰 글은 상세 경험이 필요합니다.");
+        }
+        if (!hasText(request.getAdvice())) {
+            throw new GeneralException(GeneralErrorCode.INVALID_PARAMETER, "인터뷰 글은 조언 항목이 필요합니다.");
+        }
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private List<CommunityRoadmapPostStep> parseRoadmapSteps(CommunityRoadmapPostDetail roadmapDetail, String roadmapStepsJson) {
+        if (!hasText(roadmapStepsJson)) {
+            return Collections.emptyList();
+        }
+
+        try {
+            List<RoadmapStepPayload> stepPayloads = objectMapper.readValue(roadmapStepsJson, new TypeReference<>() {
+            });
+            List<CommunityRoadmapPostStep> steps = new ArrayList<>();
+            for (int index = 0; index < stepPayloads.size(); index++) {
+                RoadmapStepPayload payload = stepPayloads.get(index);
+                steps.add(CommunityRoadmapPostStep.create(
+                        roadmapDetail,
+                        index,
+                        defaultIfBlank(payload.stage(), ""),
+                        defaultIfBlank(payload.goal(), ""),
+                        payload.topics(),
+                        payload.outputs()
+                ));
+            }
+            return steps;
+        } catch (JsonProcessingException exception) {
+            throw new GeneralException(GeneralErrorCode.INVALID_PARAMETER, "로드맵 단계 정보 형식이 올바르지 않습니다.");
+        }
+    }
+
+    private record RoadmapStepPayload(
+            String stage,
+            String goal,
+            List<String> topics,
+            List<String> outputs
+    ) {
     }
 
     private LocalDate toLocalDate(java.time.LocalDateTime dateTime) {

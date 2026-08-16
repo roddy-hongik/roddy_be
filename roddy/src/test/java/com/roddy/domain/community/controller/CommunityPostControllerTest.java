@@ -127,6 +127,44 @@ class CommunityPostControllerTest {
     }
 
     @Test
+    void 인터뷰_게시글_작성_성공() throws Exception {
+        User user = saveUser("interview-writer@example.com", "인터뷰작성자");
+
+        mockMvc.perform(multipart("/api/community/posts")
+                        .param("postCategory", "PASS_REVIEW_INTERVIEW")
+                        .param("jobCategory", "FINTECH")
+                        .param("title", "토스 백엔드 합격 후기")
+                        .param("content", "전체 후기 본문")
+                        .param("company", "토스")
+                        .param("jobRole", "백엔드")
+                        .param("preparationPeriod", "3개월")
+                        .param("techStacks", "Java", "Spring")
+                        .param("processSummary", "서류-과제-면접")
+                        .param("background", "백엔드 전환 준비")
+                        .param("preparationProcess", "CS와 프로젝트 정리")
+                        .param("experienceDetail", "면접에서 트랜잭션 질문을 받음")
+                        .param("advice", "프로젝트 선택 근거를 분명히 준비")
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.id").isNumber());
+    }
+
+    @Test
+    void 인터뷰_게시글은_필수_상세값이_없으면_실패한다() throws Exception {
+        User user = saveUser("interview-invalid@example.com", "인터뷰검증작성자");
+
+        mockMvc.perform(multipart("/api/community/posts")
+                        .param("postCategory", "PASS_REVIEW_INTERVIEW")
+                        .param("jobCategory", "FINTECH")
+                        .param("title", "필수값 없는 인터뷰 글")
+                        .param("content", "본문")
+                        .param("company", "토스")
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.isSuccess").value(false));
+    }
+
+    @Test
     void 제목이_비어있으면_실패() throws Exception {
         User user = saveUser("writer2@example.com", "작성자2");
 
