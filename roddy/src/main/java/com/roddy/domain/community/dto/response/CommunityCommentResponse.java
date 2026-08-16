@@ -1,13 +1,13 @@
 package com.roddy.domain.community.dto.response;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public record CommunityCommentResponse(
         Long id,
+        String author,
         String content,
-        String authorName,
         Long parentId,
         int depth,
-        LocalDate createdAt
+        LocalDateTime createdAt
 ) {
 }

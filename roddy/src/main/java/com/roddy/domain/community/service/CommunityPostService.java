@@ -12,6 +12,7 @@ import com.roddy.domain.community.dto.response.CommunityCommentResponse;
 import com.roddy.domain.community.dto.response.CommunityPostDetailResponse;
 import com.roddy.domain.community.dto.response.CommunityPostListItemResponse;
 import com.roddy.domain.community.dto.response.CommunityPostListResponse;
+import com.roddy.domain.community.dto.response.CommunityRoadmapStepResponse;
 import com.roddy.domain.community.dto.response.CreateCommunityPostResponse;
 import com.roddy.domain.community.dto.response.ReportPostResponse;
 import com.roddy.domain.community.dto.response.TogglePostLikeResponse;
@@ -45,9 +46,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -95,20 +96,36 @@ public class CommunityPostService {
 
         return new CommunityPostDetailResponse(
                 post.getId(),
-                post.getPostCategory().name(),
-                post.getPostCategory().getDisplayName(),
-                post.getJobCategory().name(),
-                post.getJobCategory().getDisplayName(),
+                toPostType(post),
+                toTagKey(post),
+                buildTags(post),
                 post.getTitle(),
                 post.getContent(),
                 post.getAuthor().getNickname(),
-                toLocalDate(post.getCreatedAt()),
+                post.getCreatedAt(),
                 post.getViewCount(),
                 post.getLikeCount(),
+                getCommentCount(post.getId()),
                 liked,
+                createExcerpt(post.getContent()),
+                extractRoadmapId(post),
+                extractRoadmapTitle(post),
+                extractRoadmapSummary(post),
+                extractRoadmapTargetJob(post),
+                extractRoadmapTargetCompany(post),
+                extractRecommendedSkills(post),
+                extractRoadmapSteps(post),
+                extractRoadmapDescription(post),
+                extractInterviewSubtype(post),
                 extractCompany(post),
                 extractJobRole(post),
+                extractPreparationPeriod(post),
                 extractTechStacks(post),
+                extractProcessSummary(post),
+                extractBackground(post),
+                extractPreparationProcess(post),
+                extractExperienceDetail(post),
+                extractAdvice(post),
                 post.getImages().stream().map(CommunityPostImage::getImageUrl).toList(),
                 comments
         );
@@ -256,29 +273,46 @@ public class CommunityPostService {
     private CommunityPostListItemResponse toListItemResponse(CommunityPost post) {
         return new CommunityPostListItemResponse(
                 post.getId(),
-                post.getPostCategory().name(),
-                post.getPostCategory().getDisplayName(),
-                post.getJobCategory().name(),
-                post.getJobCategory().getDisplayName(),
+                toPostType(post),
+                toTagKey(post),
+                buildTags(post),
                 post.getTitle(),
                 post.getAuthor().getNickname(),
-                toLocalDate(post.getCreatedAt()),
+                post.getCreatedAt(),
                 post.getViewCount(),
                 post.getLikeCount(),
+                getCommentCount(post.getId()),
+                createExcerpt(post.getContent()),
+                post.getContent(),
+                extractRoadmapId(post),
+                extractRoadmapTitle(post),
+                extractRoadmapSummary(post),
+                extractRoadmapTargetJob(post),
+                extractRoadmapTargetCompany(post),
+                extractRecommendedSkills(post),
+                extractRoadmapSteps(post),
+                extractRoadmapDescription(post),
+                extractInterviewSubtype(post),
                 extractCompany(post),
                 extractJobRole(post),
-                extractTechStacks(post)
+                extractPreparationPeriod(post),
+                extractTechStacks(post),
+                extractProcessSummary(post),
+                extractBackground(post),
+                extractPreparationProcess(post),
+                extractExperienceDetail(post),
+                extractAdvice(post)
         );
     }
 
     private CommunityCommentResponse toCommentResponse(CommunityComment comment) {
         return new CommunityCommentResponse(
                 comment.getId(),
-                comment.getContent(),
                 comment.getAuthor().getNickname(),
+                comment.getContent(),
                 comment.getParentComment() == null ? null : comment.getParentComment().getId(),
                 comment.getDepth(),
-                toLocalDate(comment.getCreatedAt())
+                comment.getCreatedAt()
         );
     }
 
@@ -353,6 +387,10 @@ public class CommunityPostService {
         return null;
     }
 
+    private String extractPreparationPeriod(CommunityPost post) {
+        return post.getInterviewDetail() == null ? null : post.getInterviewDetail().getPreparationPeriod();
+    }
+
     private List<String> extractTechStacks(CommunityPost post) {
         if (post.getRoadmapDetail() != null) {
             return new ArrayList<>(post.getRoadmapDetail().getRecommendedSkills());
@@ -361,6 +399,136 @@ public class CommunityPostService {
             return new ArrayList<>(post.getInterviewDetail().getTechStacks());
         }
         return List.of();
+    }
+
+    private String extractProcessSummary(CommunityPost post) {
+        return post.getInterviewDetail() == null ? null : post.getInterviewDetail().getProcessSummary();
+    }
+
+    private String extractBackground(CommunityPost post) {
+        return post.getInterviewDetail() == null ? null : post.getInterviewDetail().getBackground();
+    }
+
+    private String extractPreparationProcess(CommunityPost post) {
+        return post.getInterviewDetail() == null ? null : post.getInterviewDetail().getPreparationProcess();
+    }
+
+    private String extractExperienceDetail(CommunityPost post) {
+        return post.getInterviewDetail() == null ? null : post.getInterviewDetail().getExperienceDetail();
+    }
+
+    private String extractAdvice(CommunityPost post) {
+        return post.getInterviewDetail() == null ? null : post.getInterviewDetail().getAdvice();
+    }
+
+    private String extractRoadmapId(CommunityPost post) {
+        return post.getRoadmapDetail() == null ? null : post.getRoadmapDetail().getRoadmapId();
+    }
+
+    private String extractRoadmapTitle(CommunityPost post) {
+        return post.getRoadmapDetail() == null ? null : post.getRoadmapDetail().getRoadmapTitle();
+    }
+
+    private String extractRoadmapSummary(CommunityPost post) {
+        return post.getRoadmapDetail() == null ? null : post.getRoadmapDetail().getSummary();
+    }
+
+    private String extractRoadmapTargetJob(CommunityPost post) {
+        return post.getRoadmapDetail() == null ? null : post.getRoadmapDetail().getTargetJob();
+    }
+
+    private String extractRoadmapTargetCompany(CommunityPost post) {
+        return post.getRoadmapDetail() == null ? null : post.getRoadmapDetail().getTargetCompany();
+    }
+
+    private List<String> extractRecommendedSkills(CommunityPost post) {
+        return post.getRoadmapDetail() == null ? List.of() : new ArrayList<>(post.getRoadmapDetail().getRecommendedSkills());
+    }
+
+    private List<CommunityRoadmapStepResponse> extractRoadmapSteps(CommunityPost post) {
+        if (post.getRoadmapDetail() == null) {
+            return List.of();
+        }
+
+        return post.getRoadmapDetail().getRoadmapSteps().stream()
+                .map(step -> new CommunityRoadmapStepResponse(
+                        step.getStage(),
+                        step.getGoal(),
+                        new ArrayList<>(step.getTopics()),
+                        new ArrayList<>(step.getOutputs())
+                ))
+                .toList();
+    }
+
+    private String extractRoadmapDescription(CommunityPost post) {
+        return post.getRoadmapDetail() == null ? null : post.getRoadmapDetail().getDescription();
+    }
+
+    private String extractInterviewSubtype(CommunityPost post) {
+        if (post.getInterviewDetail() == null) {
+            return null;
+        }
+        return post.getInterviewDetail().getSubtype() == CommunityInterviewSubtype.INCUMBENT ? "incumbent" : "accepted";
+    }
+
+    private String toPostType(CommunityPost post) {
+        if (post.isRoadmapPost()) {
+            return "roadmap";
+        }
+        if (post.isInterviewPost()) {
+            return "interview";
+        }
+        return "general";
+    }
+
+    private String toTagKey(CommunityPost post) {
+        return switch (post.getJobCategory()) {
+            case B2C -> "b2c";
+            case FINTECH -> "fintech";
+            case B2B -> "b2b";
+            case INFRA_DEVOPS -> "infra-devops";
+            case GENERALIST -> "generalist";
+        };
+    }
+
+    private List<String> buildTags(CommunityPost post) {
+        Set<String> tags = new LinkedHashSet<>(post.getTags());
+
+        if (post.isGeneralPost()) {
+            tags.add(post.getPostCategory().getDisplayName());
+        }
+
+        if (post.getRoadmapDetail() != null) {
+            tags.add(post.getRoadmapDetail().getRoadmapTitle());
+            tags.add(post.getRoadmapDetail().getTargetJob());
+            if (post.getRoadmapDetail().getTargetCompany() != null) {
+                tags.add(post.getRoadmapDetail().getTargetCompany());
+            }
+            tags.addAll(post.getRoadmapDetail().getRecommendedSkills());
+        }
+
+        if (post.getInterviewDetail() != null) {
+            tags.add(post.getInterviewDetail().getSubtype().getDisplayName());
+            tags.add(post.getInterviewDetail().getCompany());
+            tags.add(post.getInterviewDetail().getJobRole());
+            tags.addAll(post.getInterviewDetail().getTechStacks());
+        }
+
+        return tags.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .toList();
+    }
+
+    private String createExcerpt(String content) {
+        if (!hasText(content)) {
+            return "";
+        }
+        String trimmed = content.trim();
+        return trimmed.length() <= 120 ? trimmed : trimmed.substring(0, 120);
+    }
+
+    private int getCommentCount(Long postId) {
+        return Math.toIntExact(communityCommentRepository.countByPost_Id(postId));
     }
 
     private String defaultIfBlank(String value, String defaultValue) {
@@ -448,10 +616,6 @@ public class CommunityPostService {
             List<String> topics,
             List<String> outputs
     ) {
-    }
-
-    private LocalDate toLocalDate(java.time.LocalDateTime dateTime) {
-        return dateTime == null ? null : dateTime.toLocalDate();
     }
 
     private List<MultipartFile> safeImages(List<MultipartFile> images) {

@@ -200,7 +200,7 @@ class CommunityPostControllerTest {
         mockMvc.perform(get("/api/community/posts").param("postCategory", "ROADMAP"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.posts.length()").value(1))
-                .andExpect(jsonPath("$.result.posts[0].postCategory").value("ROADMAP"));
+                .andExpect(jsonPath("$.result.posts[0].type").value("roadmap"));
     }
 
     @Test
@@ -212,7 +212,7 @@ class CommunityPostControllerTest {
         mockMvc.perform(get("/api/community/posts").param("jobCategory", "FINTECH"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.posts.length()").value(1))
-                .andExpect(jsonPath("$.result.posts[0].jobCategory").value("FINTECH"));
+                .andExpect(jsonPath("$.result.posts[0].tag").value("fintech"));
     }
 
     @Test
@@ -262,7 +262,7 @@ class CommunityPostControllerTest {
         mockMvc.perform(get("/api/community/posts").param("keyword", "데이터"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.posts.length()").value(1))
-                .andExpect(jsonPath("$.result.posts[0].position").value("데이터 엔지니어"));
+                .andExpect(jsonPath("$.result.posts[0].jobRole").value("데이터 엔지니어"));
     }
 
     @Test
@@ -298,7 +298,7 @@ class CommunityPostControllerTest {
         mockMvc.perform(get("/api/community/posts").param("jobRole", "프론트"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.posts.length()").value(1))
-                .andExpect(jsonPath("$.result.posts[0].position").value("프론트엔드"));
+                .andExpect(jsonPath("$.result.posts[0].jobRole").value("프론트엔드"));
     }
 
     @Test
@@ -320,12 +320,12 @@ class CommunityPostControllerTest {
 
         mockMvc.perform(get("/api/community/posts/{postId}", post.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.viewCount").value(1))
-                .andExpect(jsonPath("$.result.postCategory").value("ROADMAP"))
-                .andExpect(jsonPath("$.result.jobCategory").value("FINTECH"))
+                .andExpect(jsonPath("$.result.views").value(1))
+                .andExpect(jsonPath("$.result.type").value("roadmap"))
+                .andExpect(jsonPath("$.result.tag").value("fintech"))
                 .andExpect(jsonPath("$.result.company").value("토스"))
-                .andExpect(jsonPath("$.result.position").value("백엔드"))
-                .andExpect(jsonPath("$.result.techStacks[0]").value("Spring"));
+                .andExpect(jsonPath("$.result.jobRole").value("백엔드"))
+                .andExpect(jsonPath("$.result.recommendedSkills[0]").value("Spring"));
     }
 
     @Test
@@ -383,7 +383,7 @@ class CommunityPostControllerTest {
                         .content(objectMapper.writeValueAsString(new CommentRequest("댓글 내용", null))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.content").value("댓글 내용"))
-                .andExpect(jsonPath("$.result.authorName").value("댓글사용자"))
+                .andExpect(jsonPath("$.result.author").value("댓글사용자"))
                 .andExpect(jsonPath("$.result.parentId").doesNotExist())
                 .andExpect(jsonPath("$.result.depth").value(0));
     }
