@@ -1,7 +1,9 @@
 package com.roddy.domain.community.repository;
 
 import com.roddy.domain.community.dto.request.CommunityPostSearchCondition;
+import com.roddy.domain.community.entity.CommunityInterviewPostDetail;
 import com.roddy.domain.community.entity.CommunityPost;
+import com.roddy.domain.community.entity.CommunityRoadmapPostDetail;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
@@ -36,9 +38,12 @@ public class CommunityPostRepositoryImpl implements CommunityPostRepositoryCusto
         CriteriaQuery<Long> idQuery = cb.createQuery(Long.class);
         Root<CommunityPost> root = idQuery.from(CommunityPost.class);
         root.join("author", JoinType.INNER);
-        Join<CommunityPost, String> techStacks = root.join("techStacks", JoinType.LEFT);
+        Join<CommunityPost, CommunityRoadmapPostDetail> roadmapDetail = root.join("roadmapDetail", JoinType.LEFT);
+        Join<CommunityRoadmapPostDetail, String> roadmapSkills = roadmapDetail.join("recommendedSkills", JoinType.LEFT);
+        Join<CommunityPost, CommunityInterviewPostDetail> interviewDetail = root.join("interviewDetail", JoinType.LEFT);
+        Join<CommunityInterviewPostDetail, String> interviewSkills = interviewDetail.join("techStacks", JoinType.LEFT);
 
-        List<Predicate> predicates = buildPredicates(condition, cb, root, techStacks);
+        List<Predicate> predicates = buildPredicates(condition, cb, root, roadmapDetail, roadmapSkills, interviewDetail, interviewSkills);
         idQuery.select(root.get("id")).distinct(true);
         idQuery.where(predicates.toArray(Predicate[]::new));
         idQuery.orderBy(buildOrders(cb, root, pageable));
@@ -64,7 +69,8 @@ public class CommunityPostRepositoryImpl implements CommunityPostRepositoryCusto
                         select distinct p
                         from CommunityPost p
                         join fetch p.author
-                        left join fetch p.techStacks
+                        left join fetch p.roadmapDetail
+                        left join fetch p.interviewDetail
                         where p.id in :ids
                         """, CommunityPost.class)
                 .setParameter("ids", ids)
@@ -78,7 +84,8 @@ public class CommunityPostRepositoryImpl implements CommunityPostRepositoryCusto
                         from CommunityPost p
                         join fetch p.author
                         left join fetch p.images
-                        left join fetch p.techStacks
+                        left join fetch p.roadmapDetail
+                        left join fetch p.interviewDetail
                         where p.id = :id
                         """, CommunityPost.class)
                 .setParameter("id", id)
@@ -92,9 +99,12 @@ public class CommunityPostRepositoryImpl implements CommunityPostRepositoryCusto
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<CommunityPost> root = countQuery.from(CommunityPost.class);
         root.join("author", JoinType.INNER);
-        Join<CommunityPost, String> techStacks = root.join("techStacks", JoinType.LEFT);
+        Join<CommunityPost, CommunityRoadmapPostDetail> roadmapDetail = root.join("roadmapDetail", JoinType.LEFT);
+        Join<CommunityRoadmapPostDetail, String> roadmapSkills = roadmapDetail.join("recommendedSkills", JoinType.LEFT);
+        Join<CommunityPost, CommunityInterviewPostDetail> interviewDetail = root.join("interviewDetail", JoinType.LEFT);
+        Join<CommunityInterviewPostDetail, String> interviewSkills = interviewDetail.join("techStacks", JoinType.LEFT);
 
-        List<Predicate> predicates = buildPredicates(condition, cb, root, techStacks);
+        List<Predicate> predicates = buildPredicates(condition, cb, root, roadmapDetail, roadmapSkills, interviewDetail, interviewSkills);
         countQuery.select(cb.countDistinct(root));
         countQuery.where(predicates.toArray(Predicate[]::new));
         return entityManager.createQuery(countQuery).getSingleResult();
@@ -104,7 +114,10 @@ public class CommunityPostRepositoryImpl implements CommunityPostRepositoryCusto
             CommunityPostSearchCondition condition,
             CriteriaBuilder cb,
             Root<CommunityPost> root,
-            Join<CommunityPost, String> techStacks
+            Join<CommunityPost, CommunityRoadmapPostDetail> roadmapDetail,
+            Join<CommunityRoadmapPostDetail, String> roadmapSkills,
+            Join<CommunityPost, CommunityInterviewPostDetail> interviewDetail,
+            Join<CommunityInterviewPostDetail, String> interviewSkills
     ) {
         List<Predicate> predicates = new ArrayList<>();
 
@@ -118,19 +131,35 @@ public class CommunityPostRepositoryImpl implements CommunityPostRepositoryCusto
             String keyword = toLikePattern(condition.getKeyword());
             predicates.add(cb.or(
                     cb.like(cb.lower(root.get("title")), keyword),
-                    cb.like(cb.lower(cb.coalesce(root.get("company"), "")), keyword),
-                    cb.like(cb.lower(cb.coalesce(root.get("position"), "")), keyword),
-                    cb.like(cb.lower(techStacks), keyword)
+                    cb.like(cb.lower(root.get("content")), keyword),
+                    cb.like(cb.lower(cb.coalesce(roadmapDetail.get("targetCompany"), "")), keyword),
+                    cb.like(cb.lower(cb.coalesce(roadmapDetail.get("targetJob"), "")), keyword),
+                    cb.like(cb.lower(roadmapSkills), keyword),
+                    cb.like(cb.lower(cb.coalesce(interviewDetail.get("company"), "")), keyword),
+                    cb.like(cb.lower(cb.coalesce(interviewDetail.get("jobRole"), "")), keyword),
+                    cb.like(cb.lower(interviewSkills), keyword)
             ));
         }
         if (StringUtils.hasText(condition.getCompany())) {
-            predicates.add(cb.like(cb.lower(cb.coalesce(root.get("company"), "")), toLikePattern(condition.getCompany())));
+            String company = toLikePattern(condition.getCompany());
+            predicates.add(cb.or(
+                    cb.like(cb.lower(cb.coalesce(roadmapDetail.get("targetCompany"), "")), company),
+                    cb.like(cb.lower(cb.coalesce(interviewDetail.get("company"), "")), company)
+            ));
         }
-        if (StringUtils.hasText(condition.getPosition())) {
-            predicates.add(cb.like(cb.lower(cb.coalesce(root.get("position"), "")), toLikePattern(condition.getPosition())));
+        if (StringUtils.hasText(condition.getJobRole())) {
+            String jobRole = toLikePattern(condition.getJobRole());
+            predicates.add(cb.or(
+                    cb.like(cb.lower(cb.coalesce(roadmapDetail.get("targetJob"), "")), jobRole),
+                    cb.like(cb.lower(cb.coalesce(interviewDetail.get("jobRole"), "")), jobRole)
+            ));
         }
         if (StringUtils.hasText(condition.getTechStack())) {
-            predicates.add(cb.like(cb.lower(techStacks), toLikePattern(condition.getTechStack())));
+            String techStack = toLikePattern(condition.getTechStack());
+            predicates.add(cb.or(
+                    cb.like(cb.lower(roadmapSkills), techStack),
+                    cb.like(cb.lower(interviewSkills), techStack)
+            ));
         }
 
         return predicates;

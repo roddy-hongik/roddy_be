@@ -3,8 +3,12 @@ package com.roddy.domain.community.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
+import com.roddy.domain.auth.service.SocialAuthService;
+import com.roddy.domain.community.entity.CommunityInterviewPostDetail;
 import com.roddy.domain.community.entity.CommunityPost;
+import com.roddy.domain.community.entity.CommunityRoadmapPostDetail;
 import com.roddy.domain.community.enums.CommunityJobCategory;
+import com.roddy.domain.community.enums.CommunityInterviewSubtype;
 import com.roddy.domain.community.enums.CommunityPostCategory;
 import com.roddy.domain.community.repository.CommunityCommentRepository;
 import com.roddy.domain.community.repository.CommunityPostImageRepository;
@@ -72,6 +76,9 @@ class CommunityPostControllerTest {
 
     @MockitoBean
     private S3Uploader s3Uploader;
+
+    @MockitoBean
+    private SocialAuthService socialAuthService;
 
     @BeforeEach
     void setUp() {
@@ -193,8 +200,8 @@ class CommunityPostControllerTest {
     @Test
     void keyword로_company_검색_성공() throws Exception {
         User user = saveUser("keyword-company@example.com", "회사검색작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Java");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "네이버", "백엔드", "Java");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Java");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "다른 질문", "네이버", "백엔드", "Java");
 
         mockMvc.perform(get("/api/community/posts").param("keyword", "카카오"))
                 .andExpect(status().isOk())
@@ -205,8 +212,8 @@ class CommunityPostControllerTest {
     @Test
     void keyword로_position_검색_성공() throws Exception {
         User user = saveUser("keyword-position@example.com", "직무검색작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "데이터 엔지니어", "Python");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "Java");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "질문", "카카오", "데이터 엔지니어", "Python");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "Java");
 
         mockMvc.perform(get("/api/community/posts").param("keyword", "데이터"))
                 .andExpect(status().isOk())
@@ -217,8 +224,8 @@ class CommunityPostControllerTest {
     @Test
     void keyword로_techStacks_검색_성공() throws Exception {
         User user = saveUser("keyword-tech@example.com", "스택검색작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "React");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "React");
 
         mockMvc.perform(get("/api/community/posts").param("keyword", "spring"))
                 .andExpect(status().isOk())
@@ -229,8 +236,8 @@ class CommunityPostControllerTest {
     @Test
     void company_필터_성공() throws Exception {
         User user = saveUser("company-filter@example.com", "회사필터작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "토스", "백엔드", "Spring");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "다른 질문", "토스", "백엔드", "Spring");
 
         mockMvc.perform(get("/api/community/posts").param("company", "카카오"))
                 .andExpect(status().isOk())
@@ -241,10 +248,10 @@ class CommunityPostControllerTest {
     @Test
     void position_필터_성공() throws Exception {
         User user = saveUser("position-filter@example.com", "직무필터작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "카카오", "프론트엔드", "React");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "다른 질문", "카카오", "프론트엔드", "React");
 
-        mockMvc.perform(get("/api/community/posts").param("position", "프론트"))
+        mockMvc.perform(get("/api/community/posts").param("jobRole", "프론트"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.posts.length()").value(1))
                 .andExpect(jsonPath("$.result.posts[0].position").value("프론트엔드"));
@@ -253,8 +260,8 @@ class CommunityPostControllerTest {
     @Test
     void techStack_필터_성공() throws Exception {
         User user = saveUser("tech-filter@example.com", "스택필터작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "Docker");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "Docker");
 
         mockMvc.perform(get("/api/community/posts").param("techStack", "Docker"))
                 .andExpect(status().isOk())
@@ -329,10 +336,12 @@ class CommunityPostControllerTest {
         mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
                         .with(user(new UserDetailsImpl(user)))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new CommentRequest("댓글 내용"))))
+                        .content(objectMapper.writeValueAsString(new CommentRequest("댓글 내용", null))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.content").value("댓글 내용"))
-                .andExpect(jsonPath("$.result.authorName").value("댓글사용자"));
+                .andExpect(jsonPath("$.result.authorName").value("댓글사용자"))
+                .andExpect(jsonPath("$.result.parentId").doesNotExist())
+                .andExpect(jsonPath("$.result.depth").value(0));
     }
 
     @Test
@@ -342,7 +351,7 @@ class CommunityPostControllerTest {
 
         mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new CommentRequest("댓글 내용"))))
+                        .content(objectMapper.writeValueAsString(new CommentRequest("댓글 내용", null))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.isSuccess").value(false));
     }
@@ -369,20 +378,47 @@ class CommunityPostControllerTest {
             String position,
             String techStack
     ) {
-        return communityPostRepository.save(
-                CommunityPost.create(
-                        author,
-                        postCategory,
-                        jobCategory,
-                        title,
-                        title + " 본문",
-                        company,
-                        position,
-                        java.util.List.of(techStack)
-                )
+        CommunityPost post = CommunityPost.create(
+                author,
+                postCategory,
+                jobCategory,
+                title,
+                title + " 본문",
+                java.util.List.of()
         );
+
+        if (postCategory == CommunityPostCategory.ROADMAP) {
+            post.attachRoadmapDetail(CommunityRoadmapPostDetail.create(
+                    post,
+                    null,
+                    title,
+                    title + " 요약",
+                    title + " 설명",
+                    position,
+                    company,
+                    java.util.List.of(techStack)
+            ));
+        }
+
+        if (postCategory == CommunityPostCategory.PASS_REVIEW_INTERVIEW) {
+            post.attachInterviewDetail(CommunityInterviewPostDetail.create(
+                    post,
+                    CommunityInterviewSubtype.ACCEPTED,
+                    company == null ? "미입력" : company,
+                    position == null ? "미입력" : position,
+                    "2개월",
+                    java.util.List.of(techStack),
+                    title + " 프로세스",
+                    title + " 배경",
+                    title + " 준비 과정",
+                    title + " 상세",
+                    title + " 조언"
+            ));
+        }
+
+        return communityPostRepository.save(post);
     }
 
-    private record CommentRequest(String content) {
+    private record CommentRequest(String content, Long parentCommentId) {
     }
 }

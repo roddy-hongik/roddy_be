@@ -10,12 +10,16 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -41,11 +45,37 @@ public class CommunityComment extends BaseEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    public static CommunityComment create(CommunityPost post, User author, String content) {
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_comment_id")
+    private CommunityComment parentComment;
+
+    @OneToMany(mappedBy = "parentComment", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<CommunityComment> replies = new ArrayList<>();
+
+    public static CommunityComment create(CommunityPost post, User author, String content, CommunityComment parentComment) {
+        if (parentComment != null && !parentComment.getPost().getId().equals(post.getId())) {
+            throw new IllegalArgumentException("대댓글의 부모 댓글은 같은 게시글에 속해야 합니다.");
+        }
+
         return CommunityComment.builder()
                 .post(post)
                 .author(author)
                 .content(content)
+                .parentComment(parentComment)
+                .replies(new ArrayList<>())
                 .build();
+    }
+
+    public boolean isReply() {
+        return parentComment != null;
+    }
+
+    public boolean isAuthor(Long userId) {
+        return author != null && author.getId().equals(userId);
+    }
+
+    public int getDepth() {
+        return isReply() ? 1 : 0;
     }
 }

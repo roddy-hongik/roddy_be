@@ -18,6 +18,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Getter
@@ -61,18 +63,14 @@ public class CommunityPost extends BaseEntity {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
 
-    private String company;
-
-    private String position;
-
     @ElementCollection
     @CollectionTable(
-            name = "community_post_tech_stacks",
+            name = "community_post_tags",
             joinColumns = @JoinColumn(name = "community_post_id")
     )
-    @Column(name = "tech_stack", nullable = false)
+    @Column(name = "tag", nullable = false)
     @Builder.Default
-    private Set<String> techStacks = new LinkedHashSet<>();
+    private Set<String> tags = new LinkedHashSet<>();
 
     @Column(nullable = false)
     private int viewCount;
@@ -87,15 +85,19 @@ public class CommunityPost extends BaseEntity {
     @Builder.Default
     private List<CommunityPostImage> images = new ArrayList<>();
 
+    @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private CommunityRoadmapPostDetail roadmapDetail;
+
+    @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private CommunityInterviewPostDetail interviewDetail;
+
     public static CommunityPost create(
             User author,
             CommunityPostCategory postCategory,
             CommunityJobCategory jobCategory,
             String title,
             String content,
-            String company,
-            String position,
-            List<String> techStacks
+            List<String> tags
     ) {
         return CommunityPost.builder()
                 .author(author)
@@ -103,9 +105,7 @@ public class CommunityPost extends BaseEntity {
                 .jobCategory(jobCategory)
                 .title(title)
                 .content(content)
-                .company(normalizeOptional(company))
-                .position(normalizeOptional(position))
-                .techStacks(normalizeTechStacks(techStacks))
+                .tags(normalizeTags(tags))
                 .viewCount(0)
                 .likeCount(0)
                 .reportCount(0)
@@ -135,21 +135,33 @@ public class CommunityPost extends BaseEntity {
         this.images.add(image);
     }
 
-    private static String normalizeOptional(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isBlank() ? null : trimmed;
+    public void attachRoadmapDetail(CommunityRoadmapPostDetail roadmapDetail) {
+        this.roadmapDetail = roadmapDetail;
     }
 
-    private static Set<String> normalizeTechStacks(List<String> techStacks) {
-        if (techStacks == null) {
+    public void attachInterviewDetail(CommunityInterviewPostDetail interviewDetail) {
+        this.interviewDetail = interviewDetail;
+    }
+
+    public boolean isGeneralPost() {
+        return postCategory == CommunityPostCategory.FREE;
+    }
+
+    public boolean isRoadmapPost() {
+        return postCategory == CommunityPostCategory.ROADMAP;
+    }
+
+    public boolean isInterviewPost() {
+        return postCategory == CommunityPostCategory.PASS_REVIEW_INTERVIEW;
+    }
+
+    private static Set<String> normalizeTags(List<String> tags) {
+        if (tags == null) {
             return new LinkedHashSet<>();
         }
-        return techStacks.stream()
-                .filter(stack -> stack != null && !stack.isBlank())
+        return tags.stream()
+                .filter(tag -> tag != null && !tag.isBlank())
                 .map(String::trim)
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 }

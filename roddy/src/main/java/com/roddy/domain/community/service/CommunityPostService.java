@@ -13,14 +13,18 @@ import com.roddy.domain.community.dto.response.CreateCommunityPostResponse;
 import com.roddy.domain.community.dto.response.ReportPostResponse;
 import com.roddy.domain.community.dto.response.TogglePostLikeResponse;
 import com.roddy.domain.community.entity.CommunityComment;
+import com.roddy.domain.community.entity.CommunityInterviewPostDetail;
 import com.roddy.domain.community.entity.CommunityPost;
 import com.roddy.domain.community.entity.CommunityPostImage;
 import com.roddy.domain.community.entity.CommunityPostLike;
 import com.roddy.domain.community.entity.CommunityPostReport;
+import com.roddy.domain.community.entity.CommunityRoadmapPostDetail;
 import com.roddy.domain.community.repository.CommunityCommentRepository;
 import com.roddy.domain.community.repository.CommunityPostLikeRepository;
 import com.roddy.domain.community.repository.CommunityPostReportRepository;
 import com.roddy.domain.community.repository.CommunityPostRepository;
+import com.roddy.domain.community.enums.CommunityInterviewSubtype;
+import com.roddy.domain.community.enums.CommunityPostCategory;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
 import com.roddy.global.apiPayload.exception.GeneralException;
 import com.roddy.global.config.s3.S3Uploader;
@@ -76,7 +80,7 @@ public class CommunityPostService {
         CommunityPost post = getPostOrThrow(postId);
         post.increaseViewCount();
 
-        List<CommunityCommentResponse> comments = communityCommentRepository.findAllByPostIdOrderByCreatedAtAsc(postId)
+        List<CommunityCommentResponse> comments = communityCommentRepository.findAllByPostIdOrderByThread(postId)
                 .stream()
                 .map(this::toCommentResponse)
                 .toList();
@@ -96,9 +100,9 @@ public class CommunityPostService {
                 post.getViewCount(),
                 post.getLikeCount(),
                 liked,
-                post.getCompany(),
-                post.getPosition(),
-                new ArrayList<>(post.getTechStacks()),
+                extractCompany(post),
+                extractJobRole(post),
+                extractTechStacks(post),
                 post.getImages().stream().map(CommunityPostImage::getImageUrl).toList(),
                 comments
         );
@@ -113,10 +117,9 @@ public class CommunityPostService {
                 request.getJobCategory(),
                 request.getTitle().trim(),
                 request.getContent().trim(),
-                request.getCompany(),
-                request.getPosition(),
-                request.getTechStacks()
+                List.of()
         );
+        attachInitialDetail(post, request);
 
         List<String> uploadedImageUrls = new ArrayList<>();
         try {
@@ -184,9 +187,10 @@ public class CommunityPostService {
     public CommunityCommentResponse createComment(Long postId, Long userId, CreateCommunityCommentRequest request) {
         CommunityPost post = getPostOrThrow(postId);
         User author = getUserOrThrow(userId);
+        CommunityComment parentComment = resolveParentComment(postId, request.parentCommentId());
 
         CommunityComment comment = communityCommentRepository.save(
-                CommunityComment.create(post, author, request.content().trim())
+                CommunityComment.create(post, author, request.content().trim(), parentComment)
         );
 
         return toCommentResponse(comment);
@@ -214,9 +218,9 @@ public class CommunityPostService {
                 toLocalDate(post.getCreatedAt()),
                 post.getViewCount(),
                 post.getLikeCount(),
-                post.getCompany(),
-                post.getPosition(),
-                new ArrayList<>(post.getTechStacks())
+                extractCompany(post),
+                extractJobRole(post),
+                extractTechStacks(post)
         );
     }
 
@@ -225,8 +229,95 @@ public class CommunityPostService {
                 comment.getId(),
                 comment.getContent(),
                 comment.getAuthor().getNickname(),
+                comment.getParentComment() == null ? null : comment.getParentComment().getId(),
+                comment.getDepth(),
                 toLocalDate(comment.getCreatedAt())
         );
+    }
+
+    private void attachInitialDetail(CommunityPost post, CreateCommunityPostRequest request) {
+        if (post.getPostCategory() == CommunityPostCategory.ROADMAP) {
+            post.attachRoadmapDetail(CommunityRoadmapPostDetail.create(
+                    post,
+                    null,
+                    post.getTitle(),
+                    post.getContent(),
+                    post.getContent(),
+                    defaultIfBlank(request.getPosition(), post.getJobCategory().getDisplayName()),
+                    request.getCompany(),
+                    request.getTechStacks()
+            ));
+            return;
+        }
+
+        if (post.getPostCategory() == CommunityPostCategory.PASS_REVIEW_INTERVIEW) {
+            post.attachInterviewDetail(CommunityInterviewPostDetail.create(
+                    post,
+                    CommunityInterviewSubtype.ACCEPTED,
+                    defaultIfBlank(request.getCompany(), "미입력"),
+                    defaultIfBlank(request.getPosition(), post.getJobCategory().getDisplayName()),
+                    "미입력",
+                    request.getTechStacks(),
+                    post.getContent(),
+                    "",
+                    "",
+                    "",
+                    ""
+            ));
+        }
+    }
+
+    private CommunityComment resolveParentComment(Long postId, Long parentCommentId) {
+        if (parentCommentId == null) {
+            return null;
+        }
+
+        CommunityComment parentComment = communityCommentRepository.findByIdAndPost_Id(parentCommentId, postId)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.COMMUNITY_COMMENT_NOT_FOUND));
+
+        if (parentComment.isReply()) {
+            throw new GeneralException(GeneralErrorCode.COMMUNITY_COMMENT_PARENT_INVALID);
+        }
+
+        return parentComment;
+    }
+
+    private String extractCompany(CommunityPost post) {
+        if (post.getRoadmapDetail() != null) {
+            return post.getRoadmapDetail().getTargetCompany();
+        }
+        if (post.getInterviewDetail() != null) {
+            return post.getInterviewDetail().getCompany();
+        }
+        return null;
+    }
+
+    private String extractJobRole(CommunityPost post) {
+        if (post.getRoadmapDetail() != null) {
+            return post.getRoadmapDetail().getTargetJob();
+        }
+        if (post.getInterviewDetail() != null) {
+            return post.getInterviewDetail().getJobRole();
+        }
+        return null;
+    }
+
+    private List<String> extractTechStacks(CommunityPost post) {
+        if (post.getRoadmapDetail() != null) {
+            return new ArrayList<>(post.getRoadmapDetail().getRecommendedSkills());
+        }
+        if (post.getInterviewDetail() != null) {
+            return new ArrayList<>(post.getInterviewDetail().getTechStacks());
+        }
+        return List.of();
+    }
+
+    private String defaultIfBlank(String value, String defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        String trimmed = value.trim();
+        return trimmed.isBlank() ? defaultValue : trimmed;
     }
 
     private LocalDate toLocalDate(java.time.LocalDateTime dateTime) {
