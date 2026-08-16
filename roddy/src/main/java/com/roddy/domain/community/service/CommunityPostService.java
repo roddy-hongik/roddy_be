@@ -80,10 +80,7 @@ public class CommunityPostService {
         CommunityPost post = getPostOrThrow(postId);
         post.increaseViewCount();
 
-        List<CommunityCommentResponse> comments = communityCommentRepository.findAllByPostIdOrderByThread(postId)
-                .stream()
-                .map(this::toCommentResponse)
-                .toList();
+        List<CommunityCommentResponse> comments = getComments(postId);
 
         boolean liked = currentUserId != null && communityPostLikeRepository.existsByPost_IdAndUser_Id(postId, currentUserId);
 
@@ -194,6 +191,15 @@ public class CommunityPostService {
         );
 
         return toCommentResponse(comment);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommunityCommentResponse> getComments(Long postId) {
+        getPostOrThrow(postId);
+        return communityCommentRepository.findAllByPostIdOrderByThread(postId)
+                .stream()
+                .map(this::toCommentResponse)
+                .toList();
     }
 
     private CommunityPost getPostOrThrow(Long postId) {

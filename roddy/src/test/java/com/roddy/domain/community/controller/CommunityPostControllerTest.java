@@ -345,6 +345,96 @@ class CommunityPostControllerTest {
     }
 
     @Test
+    void 대댓글_작성_성공() throws Exception {
+        User user = saveUser("reply@example.com", "답글사용자");
+        CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "답글 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("루트 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long parentCommentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("대댓글", parentCommentId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.content").value("대댓글"))
+                .andExpect(jsonPath("$.result.parentId").value(parentCommentId))
+                .andExpect(jsonPath("$.result.depth").value(1));
+    }
+
+    @Test
+    void 대댓글에는_대댓글을_달수없다() throws Exception {
+        User user = saveUser("reply-chain@example.com", "답글체인사용자");
+        CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "답글 검증 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("루트 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long rootCommentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        String replyResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("대댓글", rootCommentId))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long replyCommentId = objectMapper.readTree(replyResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("대댓글의 대댓글", replyCommentId))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.isSuccess").value(false));
+    }
+
+    @Test
+    void 댓글_목록_조회시_대댓글_계층을_반환한다() throws Exception {
+        User user = saveUser("comment-list@example.com", "댓글목록사용자");
+        CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "댓글 목록 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("첫 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long rootCommentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("첫 댓글의 답글", rootCommentId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/community/posts/{postId}/comments", post.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.length()").value(2))
+                .andExpect(jsonPath("$.result[0].content").value("첫 댓글"))
+                .andExpect(jsonPath("$.result[0].depth").value(0))
+                .andExpect(jsonPath("$.result[1].content").value("첫 댓글의 답글"))
+                .andExpect(jsonPath("$.result[1].depth").value(1))
+                .andExpect(jsonPath("$.result[1].parentId").value(rootCommentId));
+    }
+
+    @Test
     void 비로그인_사용자는_댓글_작성에_실패한다() throws Exception {
         User user = saveUser("anonymous@example.com", "익명대상");
         CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.INFRA_DEVOPS, "인증 글", "당근", "DevOps", "Docker");
