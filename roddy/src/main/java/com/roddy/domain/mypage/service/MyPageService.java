@@ -1,11 +1,11 @@
 package com.roddy.domain.mypage.service;
 
-import com.roddy.domain.DesiredCompany;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
+import com.roddy.domain.mypage.entity.DesiredCompany;
 import com.roddy.domain.mypage.dto.request.MyPageProfileUpdateRequest;
 import com.roddy.domain.mypage.dto.response.MyPageProfileResponse;
-import com.roddy.domain.repository.DesiredCompanyRepository;
+import com.roddy.domain.mypage.repository.DesiredCompanyRepository;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
 import com.roddy.global.apiPayload.exception.GeneralException;
 import lombok.RequiredArgsConstructor;

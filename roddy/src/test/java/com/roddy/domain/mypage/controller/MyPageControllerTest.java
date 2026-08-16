@@ -1,14 +1,15 @@
 package com.roddy.domain.mypage.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.roddy.domain.DesiredCompany;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
+import com.roddy.domain.auth.service.SocialAuthService;
 import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.enums.ExperienceLevel;
 import com.roddy.domain.enums.Role;
 import com.roddy.domain.enums.SocialType;
-import com.roddy.domain.repository.DesiredCompanyRepository;
+import com.roddy.domain.mypage.entity.DesiredCompany;
+import com.roddy.domain.mypage.repository.DesiredCompanyRepository;
 import com.roddy.global.security.UserDetailsImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +55,9 @@ class MyPageControllerTest {
 
     @MockitoBean
     private StringRedisTemplate redisTemplate;
+
+    @MockitoBean
+    private SocialAuthService socialAuthService;
 
     @BeforeEach
     void setUp() {
