@@ -223,6 +223,30 @@ public class StudyService {
         );
     }
 
+    @Transactional
+    public StudyCloseResponse reopenStudyPost(Long studyId, Long userId) {
+        StudyPost studyPost = getStudyPostForUpdate(studyId);
+
+        if (!studyPost.isAuthor(userId)) {
+            throw new GeneralException(GeneralErrorCode.STUDY_FORBIDDEN);
+        }
+
+        long acceptedCount = studyApplicationRepository.countByStudyPost_IdAndStatus(studyId, StudyApplicationStatus.ACCEPTED);
+        if (acceptedCount >= studyPost.getCapacity()) {
+            throw new GeneralException(GeneralErrorCode.STUDY_REOPEN_NOT_AVAILABLE);
+        }
+
+        if (studyPost.isClosed()) {
+            studyPost.reopen();
+        }
+
+        return new StudyCloseResponse(
+                studyPost.getId(),
+                studyPost.getStatus().name(),
+                studyPost.getStatus().getDisplayName()
+        );
+    }
+
     @Transactional(readOnly = true)
     public MyStudyApplicationListResponse getMyApplications(Long userId, StudyApplicationStatus status, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));

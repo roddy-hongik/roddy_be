@@ -131,6 +131,18 @@ public class StudyController {
         );
     }
 
+    @PatchMapping("/{studyId}/reopen")
+    @Operation(summary = "스터디 모집 재오픈 처리")
+    public ApiResponse<StudyCloseResponse> reopenStudy(
+            @PathVariable Long studyId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        return ApiResponse.onSuccess(
+                "스터디 모집 상태를 변경했습니다.",
+                studyService.reopenStudyPost(studyId, requireUser(userDetails))
+        );
+    }
+
     @GetMapping("/applications/me")
     @Operation(summary = "내가 지원한 스터디 목록 조회")
     public ApiResponse<MyStudyApplicationListResponse> getMyApplications(
