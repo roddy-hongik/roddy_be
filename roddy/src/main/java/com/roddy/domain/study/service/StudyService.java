@@ -6,6 +6,7 @@ import com.roddy.domain.study.dto.request.StudyPostCreateRequest;
 import com.roddy.domain.study.dto.request.StudySearchCondition;
 import com.roddy.domain.study.dto.response.MyStudyApplicationListResponse;
 import com.roddy.domain.study.dto.response.MyStudyApplicationResponse;
+import com.roddy.domain.study.dto.response.StudyApplicantSummaryResponse;
 import com.roddy.domain.study.dto.response.StudyApplicationResponse;
 import com.roddy.domain.study.dto.response.StudyCloseResponse;
 import com.roddy.domain.study.dto.response.StudyPostCreateResponse;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -100,7 +102,8 @@ public class StudyService {
                 studyPost.getStatus().getDisplayName(),
                 myStatus == null ? null : myStatus.name(),
                 myStatus == null ? null : myStatus.getDisplayName(),
-                currentUserId != null && studyPost.isAuthor(currentUserId)
+                currentUserId != null && studyPost.isAuthor(currentUserId),
+                List.of()
         );
     }
 

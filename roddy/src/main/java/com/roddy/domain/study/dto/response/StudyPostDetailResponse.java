@@ -1,6 +1,7 @@
 package com.roddy.domain.study.dto.response;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record StudyPostDetailResponse(
         Long id,
@@ -18,6 +19,7 @@ public record StudyPostDetailResponse(
         String statusDisplayName,
         String myApplicationStatus,
         String myApplicationStatusDisplayName,
-        boolean isAuthor
+        boolean isAuthor,
+        List<StudyApplicantSummaryResponse> applicants
 ) {
 }
