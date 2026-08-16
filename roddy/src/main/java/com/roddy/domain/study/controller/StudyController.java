@@ -2,6 +2,7 @@ package com.roddy.domain.study.controller;
 
 import com.roddy.domain.study.dto.request.StudyPostCreateRequest;
 import com.roddy.domain.study.dto.request.StudySearchCondition;
+import com.roddy.domain.study.dto.request.StudyApplicationStatusUpdateRequest;
 import com.roddy.domain.study.dto.response.MyStudyApplicationListResponse;
 import com.roddy.domain.study.dto.response.StudyApplicationResponse;
 import com.roddy.domain.study.dto.response.StudyCloseResponse;
@@ -92,6 +93,20 @@ public class StudyController {
         );
     }
 
+    @PatchMapping("/{studyId}/applications/{applicationId}")
+    @Operation(summary = "스터디 지원 상태 변경")
+    public ApiResponse<StudyApplicationResponse> updateApplicationStatus(
+            @PathVariable Long studyId,
+            @PathVariable Long applicationId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @Valid @RequestBody StudyApplicationStatusUpdateRequest request
+    ) {
+        return ApiResponse.onSuccess(
+                "스터디 지원 상태를 변경했습니다.",
+                studyService.updateApplicationStatus(studyId, applicationId, requireUser(userDetails), request.status())
+        );
+    }
+
     @DeleteMapping("/{studyId}/applications/me")
     @Operation(summary = "내 스터디 지원 취소")
     public ApiResponse<StudyApplicationResponse> cancelMyApplication(
@@ -113,6 +128,18 @@ public class StudyController {
         return ApiResponse.onSuccess(
                 "스터디 모집 상태를 변경했습니다.",
                 studyService.closeStudyPost(studyId, requireUser(userDetails))
+        );
+    }
+
+    @PatchMapping("/{studyId}/reopen")
+    @Operation(summary = "스터디 모집 재오픈 처리")
+    public ApiResponse<StudyCloseResponse> reopenStudy(
+            @PathVariable Long studyId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        return ApiResponse.onSuccess(
+                "스터디 모집 상태를 변경했습니다.",
+                studyService.reopenStudyPost(studyId, requireUser(userDetails))
         );
     }
 

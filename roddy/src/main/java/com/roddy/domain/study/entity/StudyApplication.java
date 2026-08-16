@@ -70,8 +70,24 @@ public class StudyApplication extends BaseEntity {
         this.status = StudyApplicationStatus.CANCELED;
     }
 
+    public void accept() {
+        this.status = StudyApplicationStatus.ACCEPTED;
+    }
+
+    public void reject() {
+        this.status = StudyApplicationStatus.REJECTED;
+    }
+
     public boolean isApplied() {
         return this.status == StudyApplicationStatus.APPLIED;
+    }
+
+    public boolean isAccepted() {
+        return this.status == StudyApplicationStatus.ACCEPTED;
+    }
+
+    public boolean isRejected() {
+        return this.status == StudyApplicationStatus.REJECTED;
     }
 
     public boolean isCanceled() {

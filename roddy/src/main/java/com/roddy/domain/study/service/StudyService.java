@@ -6,6 +6,7 @@ import com.roddy.domain.study.dto.request.StudyPostCreateRequest;
 import com.roddy.domain.study.dto.request.StudySearchCondition;
 import com.roddy.domain.study.dto.response.MyStudyApplicationListResponse;
 import com.roddy.domain.study.dto.response.MyStudyApplicationResponse;
+import com.roddy.domain.study.dto.response.StudyApplicantSummaryResponse;
 import com.roddy.domain.study.dto.response.StudyApplicationResponse;
 import com.roddy.domain.study.dto.response.StudyCloseResponse;
 import com.roddy.domain.study.dto.response.StudyPostCreateResponse;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -76,6 +78,7 @@ public class StudyService {
     public StudyPostDetailResponse getStudyPostDetail(Long studyId, Long currentUserId) {
         StudyPost studyPost = studyPostRepository.findDetailById(studyId)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.STUDY_NOT_FOUND));
+        boolean isAuthor = currentUserId != null && studyPost.isAuthor(currentUserId);
 
         StudyApplicationStatus myStatus = null;
         if (currentUserId != null) {
@@ -83,6 +86,12 @@ public class StudyService {
                     .map(StudyApplication::getStatus)
                     .orElse(null);
         }
+
+        List<StudyApplicantSummaryResponse> applicants = isAuthor
+                ? studyApplicationRepository.findAllByStudyPostIdOrderByCreatedAtAsc(studyId).stream()
+                .map(this::toStudyApplicantSummary)
+                .toList()
+                : List.of();
 
         return new StudyPostDetailResponse(
                 studyPost.getId(),
@@ -100,7 +109,8 @@ public class StudyService {
                 studyPost.getStatus().getDisplayName(),
                 myStatus == null ? null : myStatus.name(),
                 myStatus == null ? null : myStatus.getDisplayName(),
-                currentUserId != null && studyPost.isAuthor(currentUserId)
+                isAuthor,
+                applicants
         );
     }
 
@@ -135,6 +145,46 @@ public class StudyService {
     }
 
     @Transactional
+    public StudyApplicationResponse updateApplicationStatus(Long studyId, Long applicationId, Long userId, StudyApplicationStatus targetStatus) {
+        StudyPost studyPost = getStudyPostForUpdate(studyId);
+
+        if (!studyPost.isAuthor(userId)) {
+            throw new GeneralException(GeneralErrorCode.STUDY_FORBIDDEN);
+        }
+        if (targetStatus != StudyApplicationStatus.ACCEPTED && targetStatus != StudyApplicationStatus.REJECTED) {
+            throw new GeneralException(GeneralErrorCode.INVALID_STUDY_APPLICATION_STATUS);
+        }
+
+        StudyApplication studyApplication = studyApplicationRepository.findByIdAndStudyPost_Id(applicationId, studyId)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.STUDY_APPLICATION_NOT_FOUND));
+
+        if (!studyApplication.isApplied()) {
+            throw new GeneralException(GeneralErrorCode.STUDY_APPLICATION_STATUS_ALREADY_PROCESSED);
+        }
+
+        if (targetStatus == StudyApplicationStatus.ACCEPTED) {
+            long acceptedCount = studyApplicationRepository.countByStudyPost_IdAndStatus(studyId, StudyApplicationStatus.ACCEPTED);
+            if (acceptedCount >= studyPost.getCapacity()) {
+                throw new GeneralException(GeneralErrorCode.STUDY_CAPACITY_FULL);
+            }
+            studyApplication.accept();
+            if (acceptedCount + 1 >= studyPost.getCapacity()) {
+                studyPost.close();
+            }
+        } else {
+            studyApplication.reject();
+            studyPost.decreaseApplicantCount();
+        }
+
+        return new StudyApplicationResponse(
+                studyApplication.getId(),
+                studyApplication.getStatus().name(),
+                studyApplication.getStatus().getDisplayName(),
+                studyPost.getApplicantCount()
+        );
+    }
+
+    @Transactional
     public StudyApplicationResponse cancelMyApplication(Long studyId, Long userId) {
         StudyPost studyPost = getStudyPostForUpdate(studyId);
         StudyApplication studyApplication = studyApplicationRepository.findByStudyPost_IdAndApplicant_Id(studyId, userId)
@@ -144,8 +194,11 @@ public class StudyService {
             throw new GeneralException(GeneralErrorCode.STUDY_APPLICATION_ALREADY_CANCELED);
         }
 
+        boolean shouldDecreaseApplicantCount = studyApplication.isApplied() || studyApplication.isAccepted();
         studyApplication.cancel();
-        studyPost.decreaseApplicantCount();
+        if (shouldDecreaseApplicantCount) {
+            studyPost.decreaseApplicantCount();
+        }
 
         return new StudyApplicationResponse(
                 studyApplication.getId(),
@@ -173,6 +226,30 @@ public class StudyService {
         );
     }
 
+    @Transactional
+    public StudyCloseResponse reopenStudyPost(Long studyId, Long userId) {
+        StudyPost studyPost = getStudyPostForUpdate(studyId);
+
+        if (!studyPost.isAuthor(userId)) {
+            throw new GeneralException(GeneralErrorCode.STUDY_FORBIDDEN);
+        }
+
+        long acceptedCount = studyApplicationRepository.countByStudyPost_IdAndStatus(studyId, StudyApplicationStatus.ACCEPTED);
+        if (acceptedCount >= studyPost.getCapacity()) {
+            throw new GeneralException(GeneralErrorCode.STUDY_REOPEN_NOT_AVAILABLE);
+        }
+
+        if (studyPost.isClosed()) {
+            studyPost.reopen();
+        }
+
+        return new StudyCloseResponse(
+                studyPost.getId(),
+                studyPost.getStatus().name(),
+                studyPost.getStatus().getDisplayName()
+        );
+    }
+
     @Transactional(readOnly = true)
     public MyStudyApplicationListResponse getMyApplications(Long userId, StudyApplicationStatus status, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
@@ -188,7 +265,7 @@ public class StudyService {
     }
 
     private StudyApplication reapply(StudyApplication existing, StudyPost studyPost) {
-        if (existing.isApplied()) {
+        if (!existing.isCanceled()) {
             throw new GeneralException(GeneralErrorCode.STUDY_ALREADY_APPLIED);
         }
         existing.apply();
@@ -225,6 +302,17 @@ public class StudyService {
                 post.getApplicantCount(),
                 post.getStatus().name(),
                 post.getStatus().getDisplayName(),
+                application.getStatus().name(),
+                application.getStatus().getDisplayName(),
+                application.getCreatedAt()
+        );
+    }
+
+    private StudyApplicantSummaryResponse toStudyApplicantSummary(StudyApplication application) {
+        return new StudyApplicantSummaryResponse(
+                application.getId(),
+                application.getApplicant().getId(),
+                application.getApplicant().getNickname(),
                 application.getStatus().name(),
                 application.getStatus().getDisplayName(),
                 application.getCreatedAt()

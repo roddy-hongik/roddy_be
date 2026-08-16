@@ -44,9 +44,12 @@ public enum GeneralErrorCode implements BaseErrorCode {
     STUDY_CAPACITY_FULL(HttpStatus.CONFLICT, "STUDY_4092", "스터디 모집 인원이 가득 찼습니다."),
     STUDY_ALREADY_APPLIED(HttpStatus.CONFLICT, "STUDY_4093", "이미 지원한 스터디입니다."),
     STUDY_APPLICATION_ALREADY_CANCELED(HttpStatus.CONFLICT, "STUDY_4094", "이미 취소된 스터디 지원입니다."),
+    STUDY_APPLICATION_STATUS_ALREADY_PROCESSED(HttpStatus.CONFLICT, "STUDY_4095", "이미 처리된 스터디 지원 상태입니다."),
+    STUDY_REOPEN_NOT_AVAILABLE(HttpStatus.CONFLICT, "STUDY_4096", "모집 인원이 모두 확정된 스터디는 다시 모집중으로 변경할 수 없습니다."),
     STUDY_AUTHOR_CANNOT_APPLY(HttpStatus.BAD_REQUEST, "STUDY_4001", "작성자는 자신의 스터디에 지원할 수 없습니다."),
     INVALID_STUDY_MODE_LOCATION(HttpStatus.BAD_REQUEST, "STUDY_4002", "대면 스터디는 장소가 필수입니다."),
-    INVALID_STUDY_SCHEDULE(HttpStatus.BAD_REQUEST, "STUDY_4003", "스터디 진행 시간은 현재 시각 이후여야 합니다.");
+    INVALID_STUDY_SCHEDULE(HttpStatus.BAD_REQUEST, "STUDY_4003", "스터디 진행 시간은 현재 시각 이후여야 합니다."),
+    INVALID_STUDY_APPLICATION_STATUS(HttpStatus.BAD_REQUEST, "STUDY_4004", "스터디 지원 상태는 ACCEPTED 또는 REJECTED만 설정할 수 있습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

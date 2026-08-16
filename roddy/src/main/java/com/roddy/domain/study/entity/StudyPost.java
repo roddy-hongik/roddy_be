@@ -110,6 +110,10 @@ public class StudyPost extends BaseEntity {
         this.status = StudyRecruitStatus.CLOSED;
     }
 
+    public void reopen() {
+        this.status = StudyRecruitStatus.RECRUITING;
+    }
+
     public boolean isClosed() {
         return this.status == StudyRecruitStatus.CLOSED;
     }
