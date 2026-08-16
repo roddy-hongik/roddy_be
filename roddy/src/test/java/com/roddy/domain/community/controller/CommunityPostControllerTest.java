@@ -3,10 +3,15 @@ package com.roddy.domain.community.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
+import com.roddy.domain.auth.service.SocialAuthService;
+import com.roddy.domain.community.entity.CommunityInterviewPostDetail;
 import com.roddy.domain.community.entity.CommunityPost;
+import com.roddy.domain.community.entity.CommunityRoadmapPostDetail;
 import com.roddy.domain.community.enums.CommunityJobCategory;
+import com.roddy.domain.community.enums.CommunityInterviewSubtype;
 import com.roddy.domain.community.enums.CommunityPostCategory;
 import com.roddy.domain.community.repository.CommunityCommentRepository;
+import com.roddy.domain.community.repository.CommunityCommentReportRepository;
 import com.roddy.domain.community.repository.CommunityPostImageRepository;
 import com.roddy.domain.community.repository.CommunityPostLikeRepository;
 import com.roddy.domain.community.repository.CommunityPostReportRepository;
@@ -27,13 +32,17 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -65,6 +74,9 @@ class CommunityPostControllerTest {
     private CommunityCommentRepository communityCommentRepository;
 
     @Autowired
+    private CommunityCommentReportRepository communityCommentReportRepository;
+
+    @Autowired
     private CommunityPostImageRepository communityPostImageRepository;
 
     @Autowired
@@ -72,6 +84,9 @@ class CommunityPostControllerTest {
 
     @MockitoBean
     private S3Uploader s3Uploader;
+
+    @MockitoBean
+    private SocialAuthService socialAuthService;
 
     @BeforeEach
     void setUp() {
@@ -81,6 +96,7 @@ class CommunityPostControllerTest {
 
         communityPostLikeRepository.deleteAll();
         communityPostReportRepository.deleteAll();
+        communityCommentReportRepository.deleteAll();
         communityCommentRepository.deleteAll();
         communityPostImageRepository.deleteAll();
         communityPostRepository.deleteAll();
@@ -111,6 +127,139 @@ class CommunityPostControllerTest {
                         .with(user(new UserDetailsImpl(user))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.id").isNumber());
+    }
+
+    @Test
+    void 인터뷰_게시글_작성_성공() throws Exception {
+        User user = saveUser("interview-writer@example.com", "인터뷰작성자");
+
+        mockMvc.perform(multipart("/api/community/posts")
+                        .param("postCategory", "PASS_REVIEW_INTERVIEW")
+                        .param("jobCategory", "FINTECH")
+                        .param("title", "토스 백엔드 합격 후기")
+                        .param("content", "전체 후기 본문")
+                        .param("company", "토스")
+                        .param("jobRole", "백엔드")
+                        .param("preparationPeriod", "3개월")
+                        .param("techStacks", "Java", "Spring")
+                        .param("processSummary", "서류-과제-면접")
+                        .param("background", "백엔드 전환 준비")
+                        .param("preparationProcess", "CS와 프로젝트 정리")
+                        .param("experienceDetail", "면접에서 트랜잭션 질문을 받음")
+                        .param("advice", "프로젝트 선택 근거를 분명히 준비")
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.id").isNumber());
+    }
+
+    @Test
+    void 인터뷰_게시글은_필수_상세값이_없으면_실패한다() throws Exception {
+        User user = saveUser("interview-invalid@example.com", "인터뷰검증작성자");
+
+        mockMvc.perform(multipart("/api/community/posts")
+                        .param("postCategory", "PASS_REVIEW_INTERVIEW")
+                        .param("jobCategory", "FINTECH")
+                        .param("title", "필수값 없는 인터뷰 글")
+                        .param("content", "본문")
+                        .param("company", "토스")
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.isSuccess").value(false));
+    }
+
+    @Test
+    void 로드맵_생성후_상세조회시_프론트_확장_필드가_반영된다() throws Exception {
+        User user = saveUser("roadmap-detail@example.com", "로드맵작성자");
+
+        String createResponse = mockMvc.perform(multipart("/api/community/posts")
+                        .param("postCategory", "ROADMAP")
+                        .param("jobCategory", "B2C")
+                        .param("title", "백엔드 로드맵")
+                        .param("content", "로드맵 본문")
+                        .param("tags", "java", "spring")
+                        .param("roadmapId", "rm-101")
+                        .param("roadmapTitle", "주니어 백엔드 로드맵")
+                        .param("summary", "핵심 요약")
+                        .param("description", "상세 설명")
+                        .param("targetJob", "백엔드")
+                        .param("targetCompany", "토스")
+                        .param("recommendedSkills", "Java", "Spring")
+                        .param("roadmapStepsJson", objectMapper.writeValueAsString(List.of(
+                                Map.of(
+                                        "stage", "1단계",
+                                        "goal", "기초 다지기",
+                                        "topics", List.of("Java", "OOP"),
+                                        "outputs", List.of("미니 프로젝트")
+                                )
+                        )))
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long postId = extractResultId(createResponse);
+
+        mockMvc.perform(get("/api/community/posts/{postId}", postId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.type").value("roadmap"))
+                .andExpect(jsonPath("$.result.tag").value("b2c"))
+                .andExpect(jsonPath("$.result.tags", hasItem("java")))
+                .andExpect(jsonPath("$.result.roadmapId").value("rm-101"))
+                .andExpect(jsonPath("$.result.roadmapTitle").value("주니어 백엔드 로드맵"))
+                .andExpect(jsonPath("$.result.summary").value("핵심 요약"))
+                .andExpect(jsonPath("$.result.targetJob").value("백엔드"))
+                .andExpect(jsonPath("$.result.targetCompany").value("토스"))
+                .andExpect(jsonPath("$.result.recommendedSkills[0]").value("Java"))
+                .andExpect(jsonPath("$.result.roadmapSteps[0].stage").value("1단계"))
+                .andExpect(jsonPath("$.result.roadmapSteps[0].topics[0]").value("Java"))
+                .andExpect(jsonPath("$.result.description").value("상세 설명"))
+                .andExpect(jsonPath("$.result.commentCount").value(0))
+                .andExpect(jsonPath("$.result.excerpt").value("로드맵 본문"));
+    }
+
+    @Test
+    void 인터뷰_생성후_상세조회시_프론트_확장_필드가_반영된다() throws Exception {
+        User user = saveUser("interview-detail@example.com", "인터뷰상세작성자");
+
+        String createResponse = mockMvc.perform(multipart("/api/community/posts")
+                        .param("postCategory", "PASS_REVIEW_INTERVIEW")
+                        .param("jobCategory", "FINTECH")
+                        .param("title", "토스 백엔드 최종합격")
+                        .param("content", "인터뷰 전체 본문")
+                        .param("tags", "합격", "후기")
+                        .param("interviewSubtype", "INCUMBENT")
+                        .param("company", "토스")
+                        .param("jobRole", "백엔드")
+                        .param("preparationPeriod", "4개월")
+                        .param("techStacks", "Java", "Spring")
+                        .param("processSummary", "서류-과제-최종면접")
+                        .param("background", "이직 준비 중")
+                        .param("preparationProcess", "CS와 프로젝트 정리")
+                        .param("experienceDetail", "트랜잭션과 분산락 질문이 나왔다")
+                        .param("advice", "실제 장애 대응 경험을 정리해두면 좋다")
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long postId = extractResultId(createResponse);
+
+        mockMvc.perform(get("/api/community/posts/{postId}", postId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.type").value("interview"))
+                .andExpect(jsonPath("$.result.tag").value("fintech"))
+                .andExpect(jsonPath("$.result.subtype").value("incumbent"))
+                .andExpect(jsonPath("$.result.company").value("토스"))
+                .andExpect(jsonPath("$.result.jobRole").value("백엔드"))
+                .andExpect(jsonPath("$.result.preparationPeriod").value("4개월"))
+                .andExpect(jsonPath("$.result.techStacks[0]").value("Java"))
+                .andExpect(jsonPath("$.result.processSummary").value("서류-과제-최종면접"))
+                .andExpect(jsonPath("$.result.background").value("이직 준비 중"))
+                .andExpect(jsonPath("$.result.preparationProcess").value("CS와 프로젝트 정리"))
+                .andExpect(jsonPath("$.result.experienceDetail").value("트랜잭션과 분산락 질문이 나왔다"))
+                .andExpect(jsonPath("$.result.advice").value("실제 장애 대응 경험을 정리해두면 좋다"));
     }
 
     @Test
@@ -149,7 +298,7 @@ class CommunityPostControllerTest {
         mockMvc.perform(get("/api/community/posts").param("postCategory", "ROADMAP"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.posts.length()").value(1))
-                .andExpect(jsonPath("$.result.posts[0].postCategory").value("ROADMAP"));
+                .andExpect(jsonPath("$.result.posts[0].type").value("roadmap"));
     }
 
     @Test
@@ -161,7 +310,7 @@ class CommunityPostControllerTest {
         mockMvc.perform(get("/api/community/posts").param("jobCategory", "FINTECH"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.posts.length()").value(1))
-                .andExpect(jsonPath("$.result.posts[0].jobCategory").value("FINTECH"));
+                .andExpect(jsonPath("$.result.posts[0].tag").value("fintech"));
     }
 
     @Test
@@ -193,8 +342,8 @@ class CommunityPostControllerTest {
     @Test
     void keyword로_company_검색_성공() throws Exception {
         User user = saveUser("keyword-company@example.com", "회사검색작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Java");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "네이버", "백엔드", "Java");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Java");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "다른 질문", "네이버", "백엔드", "Java");
 
         mockMvc.perform(get("/api/community/posts").param("keyword", "카카오"))
                 .andExpect(status().isOk())
@@ -205,20 +354,20 @@ class CommunityPostControllerTest {
     @Test
     void keyword로_position_검색_성공() throws Exception {
         User user = saveUser("keyword-position@example.com", "직무검색작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "데이터 엔지니어", "Python");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "Java");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "질문", "카카오", "데이터 엔지니어", "Python");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "Java");
 
         mockMvc.perform(get("/api/community/posts").param("keyword", "데이터"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.posts.length()").value(1))
-                .andExpect(jsonPath("$.result.posts[0].position").value("데이터 엔지니어"));
+                .andExpect(jsonPath("$.result.posts[0].jobRole").value("데이터 엔지니어"));
     }
 
     @Test
     void keyword로_techStacks_검색_성공() throws Exception {
         User user = saveUser("keyword-tech@example.com", "스택검색작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "React");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "React");
 
         mockMvc.perform(get("/api/community/posts").param("keyword", "spring"))
                 .andExpect(status().isOk())
@@ -229,8 +378,8 @@ class CommunityPostControllerTest {
     @Test
     void company_필터_성공() throws Exception {
         User user = saveUser("company-filter@example.com", "회사필터작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "토스", "백엔드", "Spring");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "다른 질문", "토스", "백엔드", "Spring");
 
         mockMvc.perform(get("/api/community/posts").param("company", "카카오"))
                 .andExpect(status().isOk())
@@ -241,20 +390,20 @@ class CommunityPostControllerTest {
     @Test
     void position_필터_성공() throws Exception {
         User user = saveUser("position-filter@example.com", "직무필터작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "카카오", "프론트엔드", "React");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "다른 질문", "카카오", "프론트엔드", "React");
 
-        mockMvc.perform(get("/api/community/posts").param("position", "프론트"))
+        mockMvc.perform(get("/api/community/posts").param("jobRole", "프론트"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.posts.length()").value(1))
-                .andExpect(jsonPath("$.result.posts[0].position").value("프론트엔드"));
+                .andExpect(jsonPath("$.result.posts[0].jobRole").value("프론트엔드"));
     }
 
     @Test
     void techStack_필터_성공() throws Exception {
         User user = saveUser("tech-filter@example.com", "스택필터작성자");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
-        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "Docker");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.B2C, "질문", "카카오", "백엔드", "Spring");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "다른 질문", "카카오", "백엔드", "Docker");
 
         mockMvc.perform(get("/api/community/posts").param("techStack", "Docker"))
                 .andExpect(status().isOk())
@@ -269,12 +418,12 @@ class CommunityPostControllerTest {
 
         mockMvc.perform(get("/api/community/posts/{postId}", post.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.result.viewCount").value(1))
-                .andExpect(jsonPath("$.result.postCategory").value("ROADMAP"))
-                .andExpect(jsonPath("$.result.jobCategory").value("FINTECH"))
+                .andExpect(jsonPath("$.result.views").value(1))
+                .andExpect(jsonPath("$.result.type").value("roadmap"))
+                .andExpect(jsonPath("$.result.tag").value("fintech"))
                 .andExpect(jsonPath("$.result.company").value("토스"))
-                .andExpect(jsonPath("$.result.position").value("백엔드"))
-                .andExpect(jsonPath("$.result.techStacks[0]").value("Spring"));
+                .andExpect(jsonPath("$.result.jobRole").value("백엔드"))
+                .andExpect(jsonPath("$.result.recommendedSkills[0]").value("Spring"));
     }
 
     @Test
@@ -329,10 +478,175 @@ class CommunityPostControllerTest {
         mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
                         .with(user(new UserDetailsImpl(user)))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new CommentRequest("댓글 내용"))))
+                        .content(objectMapper.writeValueAsString(new CommentRequest("댓글 내용", null))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.content").value("댓글 내용"))
-                .andExpect(jsonPath("$.result.authorName").value("댓글사용자"));
+                .andExpect(jsonPath("$.result.author").value("댓글사용자"))
+                .andExpect(jsonPath("$.result.parentId").doesNotExist())
+                .andExpect(jsonPath("$.result.depth").value(0));
+    }
+
+    @Test
+    void 대댓글_작성_성공() throws Exception {
+        User user = saveUser("reply@example.com", "답글사용자");
+        CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "답글 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("루트 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long parentCommentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("대댓글", parentCommentId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.content").value("대댓글"))
+                .andExpect(jsonPath("$.result.parentId").value(parentCommentId))
+                .andExpect(jsonPath("$.result.depth").value(1));
+    }
+
+    @Test
+    void 대댓글에는_대댓글을_달수없다() throws Exception {
+        User user = saveUser("reply-chain@example.com", "답글체인사용자");
+        CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "답글 검증 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("루트 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long rootCommentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        String replyResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("대댓글", rootCommentId))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long replyCommentId = objectMapper.readTree(replyResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("대댓글의 대댓글", replyCommentId))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.isSuccess").value(false));
+    }
+
+    @Test
+    void 댓글_목록_조회시_대댓글_계층을_반환한다() throws Exception {
+        User user = saveUser("comment-list@example.com", "댓글목록사용자");
+        CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "댓글 목록 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("첫 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long rootCommentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("첫 댓글의 답글", rootCommentId))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/community/posts/{postId}/comments", post.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.length()").value(2))
+                .andExpect(jsonPath("$.result[0].content").value("첫 댓글"))
+                .andExpect(jsonPath("$.result[0].depth").value(0))
+                .andExpect(jsonPath("$.result[1].content").value("첫 댓글의 답글"))
+                .andExpect(jsonPath("$.result[1].depth").value(1))
+                .andExpect(jsonPath("$.result[1].parentId").value(rootCommentId));
+    }
+
+    @Test
+    void 본인_댓글_삭제_성공() throws Exception {
+        User user = saveUser("comment-delete@example.com", "댓글삭제사용자");
+        CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "댓글 삭제 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("삭제할 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long commentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(delete("/api/community/comments/{commentId}", commentId)
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.isSuccess").value(true));
+
+        mockMvc.perform(get("/api/community/posts/{postId}/comments", post.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.length()").value(0));
+    }
+
+    @Test
+    void 타인_댓글_삭제는_실패한다() throws Exception {
+        User writer = saveUser("comment-owner@example.com", "댓글주인");
+        User other = saveUser("comment-other@example.com", "다른사용자");
+        CommunityPost post = savePost(writer, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "댓글 권한 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(writer)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("삭제 불가 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long commentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(delete("/api/community/comments/{commentId}", commentId)
+                        .with(user(new UserDetailsImpl(other))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.isSuccess").value(false));
+    }
+
+    @Test
+    void 댓글_중복_신고_방지() throws Exception {
+        User user = saveUser("comment-report@example.com", "댓글신고사용자");
+        CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "댓글 신고 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("신고 대상 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Long commentId = objectMapper.readTree(rootResponse).path("result").path("id").asLong();
+
+        mockMvc.perform(post("/api/community/comments/{commentId}/report", commentId)
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.reported").value(true));
+
+        mockMvc.perform(post("/api/community/comments/{commentId}/report", commentId)
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.isSuccess").value(false));
     }
 
     @Test
@@ -342,7 +656,7 @@ class CommunityPostControllerTest {
 
         mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new CommentRequest("댓글 내용"))))
+                        .content(objectMapper.writeValueAsString(new CommentRequest("댓글 내용", null))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.isSuccess").value(false));
     }
@@ -369,20 +683,51 @@ class CommunityPostControllerTest {
             String position,
             String techStack
     ) {
-        return communityPostRepository.save(
-                CommunityPost.create(
-                        author,
-                        postCategory,
-                        jobCategory,
-                        title,
-                        title + " 본문",
-                        company,
-                        position,
-                        java.util.List.of(techStack)
-                )
+        CommunityPost post = CommunityPost.create(
+                author,
+                postCategory,
+                jobCategory,
+                title,
+                title + " 본문",
+                java.util.List.of()
         );
+
+        if (postCategory == CommunityPostCategory.ROADMAP) {
+            post.attachRoadmapDetail(CommunityRoadmapPostDetail.create(
+                    post,
+                    null,
+                    title,
+                    title + " 요약",
+                    title + " 설명",
+                    position,
+                    company,
+                    java.util.List.of(techStack)
+            ));
+        }
+
+        if (postCategory == CommunityPostCategory.PASS_REVIEW_INTERVIEW) {
+            post.attachInterviewDetail(CommunityInterviewPostDetail.create(
+                    post,
+                    CommunityInterviewSubtype.ACCEPTED,
+                    company == null ? "미입력" : company,
+                    position == null ? "미입력" : position,
+                    "2개월",
+                    java.util.List.of(techStack),
+                    title + " 프로세스",
+                    title + " 배경",
+                    title + " 준비 과정",
+                    title + " 상세",
+                    title + " 조언"
+            ));
+        }
+
+        return communityPostRepository.save(post);
     }
 
-    private record CommentRequest(String content) {
+    private Long extractResultId(String response) throws Exception {
+        return objectMapper.readTree(response).path("result").path("id").asLong();
+    }
+
+    private record CommentRequest(String content, Long parentCommentId) {
     }
 }

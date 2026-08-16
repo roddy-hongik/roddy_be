@@ -1,4 +1,5 @@
-package com.roddy.domain;
+package com.roddy.domain.mypage.entity;
+
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.enums.DesiredJob;
 import jakarta.persistence.*;

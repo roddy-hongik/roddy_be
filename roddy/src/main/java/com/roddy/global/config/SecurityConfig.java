@@ -63,7 +63,7 @@ public class SecurityConfig {
                 .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                 .requestMatchers("/api/onboarding/github/callback").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/community/posts", "/api/community/posts/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/community/posts", "/api/community/posts/*", "/api/community/posts/*/comments").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/studies", "/api/studies/*").permitAll()
                 .anyRequest().authenticated()
         );

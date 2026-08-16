@@ -1,6 +1,6 @@
-package com.roddy.domain.repository;
+package com.roddy.domain.mypage.repository;
 
-import com.roddy.domain.DesiredCompany;
+import com.roddy.domain.mypage.entity.DesiredCompany;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

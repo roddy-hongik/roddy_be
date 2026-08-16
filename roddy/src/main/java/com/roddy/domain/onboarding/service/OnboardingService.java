@@ -1,15 +1,15 @@
 package com.roddy.domain.onboarding.service;
 
-import com.roddy.domain.DesiredCompany;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
 import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.enums.ExperienceLevel;
+import com.roddy.domain.mypage.entity.DesiredCompany;
+import com.roddy.domain.mypage.repository.DesiredCompanyRepository;
 import com.roddy.domain.onboarding.dto.request.OnboardingProfileRequest;
 import com.roddy.domain.onboarding.dto.request.PortfolioPresignRequest;
 import com.roddy.domain.onboarding.dto.response.OnboardingProfileResponse;
 import com.roddy.domain.onboarding.dto.response.PortfolioPresignResponse;
-import com.roddy.domain.repository.DesiredCompanyRepository;
 import com.roddy.global.config.s3.S3ObjectUrlService;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
 import com.roddy.global.apiPayload.exception.GeneralException;

@@ -13,6 +13,6 @@ public class CommunityPostSearchCondition {
     private CommunityJobCategory jobCategory;
     private String keyword;
     private String company;
-    private String position;
+    private String jobRole;
     private String techStack;
 }

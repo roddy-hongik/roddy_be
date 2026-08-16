@@ -68,6 +68,17 @@ public class CommunityPostController {
         );
     }
 
+    @GetMapping("/{postId}/comments")
+    @Operation(summary = "댓글 목록 조회")
+    public ApiResponse<java.util.List<CommunityCommentResponse>> getComments(
+            @PathVariable Long postId
+    ) {
+        return ApiResponse.onSuccess(
+                "댓글 목록을 조회했습니다.",
+                communityPostService.getComments(postId)
+        );
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "커뮤니티 게시글 작성")
     public ApiResponse<CreateCommunityPostResponse> createPost(
