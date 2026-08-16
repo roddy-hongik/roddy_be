@@ -145,6 +145,46 @@ public class StudyService {
     }
 
     @Transactional
+    public StudyApplicationResponse updateApplicationStatus(Long studyId, Long applicationId, Long userId, StudyApplicationStatus targetStatus) {
+        StudyPost studyPost = getStudyPostForUpdate(studyId);
+
+        if (!studyPost.isAuthor(userId)) {
+            throw new GeneralException(GeneralErrorCode.STUDY_FORBIDDEN);
+        }
+        if (targetStatus != StudyApplicationStatus.ACCEPTED && targetStatus != StudyApplicationStatus.REJECTED) {
+            throw new GeneralException(GeneralErrorCode.INVALID_STUDY_APPLICATION_STATUS);
+        }
+
+        StudyApplication studyApplication = studyApplicationRepository.findByIdAndStudyPost_Id(applicationId, studyId)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.STUDY_APPLICATION_NOT_FOUND));
+
+        if (!studyApplication.isApplied()) {
+            throw new GeneralException(GeneralErrorCode.STUDY_APPLICATION_STATUS_ALREADY_PROCESSED);
+        }
+
+        if (targetStatus == StudyApplicationStatus.ACCEPTED) {
+            long acceptedCount = studyApplicationRepository.countByStudyPost_IdAndStatus(studyId, StudyApplicationStatus.ACCEPTED);
+            if (acceptedCount >= studyPost.getCapacity()) {
+                throw new GeneralException(GeneralErrorCode.STUDY_CAPACITY_FULL);
+            }
+            studyApplication.accept();
+            if (acceptedCount + 1 >= studyPost.getCapacity()) {
+                studyPost.close();
+            }
+        } else {
+            studyApplication.reject();
+            studyPost.decreaseApplicantCount();
+        }
+
+        return new StudyApplicationResponse(
+                studyApplication.getId(),
+                studyApplication.getStatus().name(),
+                studyApplication.getStatus().getDisplayName(),
+                studyPost.getApplicantCount()
+        );
+    }
+
+    @Transactional
     public StudyApplicationResponse cancelMyApplication(Long studyId, Long userId) {
         StudyPost studyPost = getStudyPostForUpdate(studyId);
         StudyApplication studyApplication = studyApplicationRepository.findByStudyPost_IdAndApplicant_Id(studyId, userId)
@@ -198,7 +238,7 @@ public class StudyService {
     }
 
     private StudyApplication reapply(StudyApplication existing, StudyPost studyPost) {
-        if (existing.isApplied()) {
+        if (!existing.isCanceled()) {
             throw new GeneralException(GeneralErrorCode.STUDY_ALREADY_APPLIED);
         }
         existing.apply();

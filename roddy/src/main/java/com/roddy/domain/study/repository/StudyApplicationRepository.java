@@ -15,6 +15,10 @@ public interface StudyApplicationRepository extends JpaRepository<StudyApplicati
 
     Optional<StudyApplication> findByStudyPost_IdAndApplicant_Id(Long studyId, Long applicantId);
 
+    Optional<StudyApplication> findByIdAndStudyPost_Id(Long applicationId, Long studyId);
+
+    long countByStudyPost_IdAndStatus(Long studyId, StudyApplicationStatus status);
+
     @Query("""
             select sa
             from StudyApplication sa

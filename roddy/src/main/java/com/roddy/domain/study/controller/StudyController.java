@@ -2,6 +2,7 @@ package com.roddy.domain.study.controller;
 
 import com.roddy.domain.study.dto.request.StudyPostCreateRequest;
 import com.roddy.domain.study.dto.request.StudySearchCondition;
+import com.roddy.domain.study.dto.request.StudyApplicationStatusUpdateRequest;
 import com.roddy.domain.study.dto.response.MyStudyApplicationListResponse;
 import com.roddy.domain.study.dto.response.StudyApplicationResponse;
 import com.roddy.domain.study.dto.response.StudyCloseResponse;
@@ -89,6 +90,20 @@ public class StudyController {
         return ApiResponse.onSuccess(
                 "스터디 지원이 완료되었습니다.",
                 studyService.applyToStudy(studyId, requireUser(userDetails))
+        );
+    }
+
+    @PatchMapping("/{studyId}/applications/{applicationId}")
+    @Operation(summary = "스터디 지원 상태 변경")
+    public ApiResponse<StudyApplicationResponse> updateApplicationStatus(
+            @PathVariable Long studyId,
+            @PathVariable Long applicationId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @Valid @RequestBody StudyApplicationStatusUpdateRequest request
+    ) {
+        return ApiResponse.onSuccess(
+                "스터디 지원 상태를 변경했습니다.",
+                studyService.updateApplicationStatus(studyId, applicationId, requireUser(userDetails), request.status())
         );
     }
 
