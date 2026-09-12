@@ -55,6 +55,21 @@ public class TechStackExtractor {
     }
 
     /** 찾는 도중에 글자를 바꾸면 안 되므로 위치부터 모아 둔다. */
+    /**
+     * 사용자가 적어 둔 기술 이름을 사전의 표준 이름으로 맞춘다.
+     *
+     * <p>"자바" 와 "java" 가 공고의 "Java" 와 이어지도록 하기 위함이다. 사전에 없거나 여러 기술이
+     * 섞여 읽히면 다듬기만 해서 그대로 돌려준다.
+     */
+    public String canonicalize(String name) {
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+
+        Set<String> matched = extract(name);
+        return matched.size() == 1 ? matched.iterator().next() : name.trim();
+    }
+
     private List<int[]> findAll(TechStackDictionary.Term term, CharSequence haystack) {
         Matcher matcher = term.pattern().matcher(haystack);
         List<int[]> ranges = new ArrayList<>();

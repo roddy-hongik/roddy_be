@@ -4,7 +4,9 @@ import com.roddy.domain.jobposting.dto.request.JobPostingSearchCondition;
 import com.roddy.domain.jobposting.dto.response.JobPostingDetailResponse;
 import com.roddy.domain.jobposting.dto.response.JobPostingListItemResponse;
 import com.roddy.domain.jobposting.dto.response.JobPostingListResponse;
+import com.roddy.domain.jobposting.dto.response.JobPostingMatchResponse;
 import com.roddy.domain.jobposting.dto.response.ToggleJobScrapResponse;
+import com.roddy.domain.jobposting.service.JobPostingMatchService;
 import com.roddy.domain.jobposting.service.JobPostingService;
 import com.roddy.global.apiPayload.ApiResponse;
 import com.roddy.global.security.UserDetailsImpl;
@@ -34,6 +36,7 @@ import java.util.List;
 public class JobPostingController {
 
     private final JobPostingService jobPostingService;
+    private final JobPostingMatchService jobPostingMatchService;
 
     @GetMapping
     @Operation(summary = "채용공고 목록 조회")
@@ -69,6 +72,18 @@ public class JobPostingController {
         return ApiResponse.onSuccess(
                 "채용공고 상세를 조회했습니다.",
                 jobPostingService.getJobPosting(jobPostingId, userIdOf(userDetails))
+        );
+    }
+
+    @GetMapping("/{jobPostingId}/match")
+    @Operation(summary = "채용공고 매칭률 조회", description = "공고가 요구하는 기술과 내 기술스택의 적합도")
+    public ApiResponse<JobPostingMatchResponse> getMatch(
+            @PathVariable Long jobPostingId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
+    ) {
+        return ApiResponse.onSuccess(
+                "채용공고 매칭률을 조회했습니다.",
+                jobPostingMatchService.getMatch(jobPostingId, userDetails.getUser().getId())
         );
     }
 

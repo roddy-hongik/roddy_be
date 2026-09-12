@@ -23,4 +23,12 @@ public class StackDetail {
     private String stackName;
 
     private String description;
+
+    public static StackDetail create(Stack stack, String stackName, String description) {
+        StackDetail detail = new StackDetail();
+        detail.stack = stack;
+        detail.stackName = stackName;
+        detail.description = description;
+        return detail;
+    }
 }
