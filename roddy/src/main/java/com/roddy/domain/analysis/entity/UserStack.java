@@ -1,5 +1,6 @@
-package com.roddy.domain;
+package com.roddy.domain.analysis.entity;
 
+import com.roddy.domain.BaseEntity;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.enums.StackLevel;
 import jakarta.persistence.*;
