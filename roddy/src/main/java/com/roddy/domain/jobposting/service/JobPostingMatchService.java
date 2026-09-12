@@ -44,7 +44,7 @@ public class JobPostingMatchService {
 
         return new JobPostingMatchResponse(
                 jobPostingId,
-                matchRate(stacks, userScores.size()),
+                MatchRateCalculator.calculate(posting.getTechStacks(), userScores),
                 stacks.size(),
                 stacks.size() - missing.size(),
                 userScores.size(),
@@ -63,18 +63,4 @@ public class JobPostingMatchService {
                 .toList();
     }
 
-    /**
-     * 공고가 요구하는 기술마다 사용자의 점수를 더해 평균 낸다. 갖고 있지 않은 기술은 0 점이므로
-     * 요구 기술을 많이 가질수록, 그리고 깊이 알수록 높아진다.
-     *
-     * <p>견줄 것이 없으면 숫자를 만들지 않는다. 0 을 주면 "적합하지 않다"로 읽히는데, 실제로는
-     * 아직 판단할 근거가 없다는 뜻이기 때문이다.
-     */
-    private Integer matchRate(List<JobMatchStackResponse> stacks, int userStackCount) {
-        if (stacks.isEmpty() || userStackCount == 0) {
-            return null;
-        }
-        int total = stacks.stream().mapToInt(JobMatchStackResponse::userScore).sum();
-        return Math.round((float) total / stacks.size());
-    }
 }

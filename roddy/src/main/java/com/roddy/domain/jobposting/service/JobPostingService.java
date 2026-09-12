@@ -1,5 +1,6 @@
 package com.roddy.domain.jobposting.service;
 
+import com.roddy.domain.analysis.service.UserTechStackReader;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
 import com.roddy.domain.enums.JobPostingStatus;
@@ -23,8 +24,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -34,12 +39,28 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class JobPostingService {
 
+    /** 매칭률 순 정렬을 요청할 때 쓰는 값. 그 외에는 게시일 최신순이다. */
+    private static final String SORT_BY_MATCH = "match";
+
     private final JobPostingRepository jobPostingRepository;
     private final JobBookmarkRepository jobBookmarkRepository;
     private final UserRepository userRepository;
+    private final UserTechStackReader userTechStackReader;
 
     public JobPostingListResponse getJobPostings(JobPostingSearchCondition condition,
-                                                 int page, int size, Long userId) {
+                                                 int page, int size, String sort, Long userId) {
+        Map<String, Integer> userScores = userTechStackReader.read(userId);
+
+        // 분석 결과가 없으면 매칭률이 모두 비어 정렬할 것이 없다. 그때는 최신순을 그대로 쓴다.
+        if (SORT_BY_MATCH.equalsIgnoreCase(sort) && !userScores.isEmpty()) {
+            return getJobPostingsByMatchRate(condition, page, size, userId, userScores);
+        }
+        return getJobPostingsByLatest(condition, page, size, userId, userScores);
+    }
+
+    private JobPostingListResponse getJobPostingsByLatest(JobPostingSearchCondition condition,
+                                                         int page, int size, Long userId,
+                                                         Map<String, Integer> userScores) {
         Page<JobPosting> found = jobPostingRepository.search(
                 statusOf(condition),
                 blankToNull(condition.getCompany()),
@@ -48,12 +69,92 @@ public class JobPostingService {
                 PageRequest.of(page, size)
         );
 
-        Set<Long> scrappedIds = scrappedIds(userId, found.getContent());
-        List<JobPostingListItemResponse> jobs = found.getContent().stream()
-                .map(posting -> JobPostingListItemResponse.from(posting, scrappedIds.contains(posting.getId())))
-                .toList();
+        return JobPostingListResponse.of(found, toItems(found.getContent(), userId, userScores));
+    }
 
-        return JobPostingListResponse.of(found, jobs);
+    /**
+     * 매칭률이 높은 공고를 앞에 둔다.
+     *
+     * <p>페이지를 나누려면 전체를 견줘 봐야 하므로 조건에 맞는 id 를 모두 가져와 점수를 매긴 뒤
+     * 필요한 페이지만 다시 읽는다. 공고 본문까지 전부 읽으면 무겁기 때문에 id 와 요구 기술만 본다.
+     */
+    private JobPostingListResponse getJobPostingsByMatchRate(JobPostingSearchCondition condition,
+                                                            int page, int size, Long userId,
+                                                            Map<String, Integer> userScores) {
+        List<Long> candidateIds = jobPostingRepository.searchIds(
+                statusOf(condition),
+                blankToNull(condition.getCompany()),
+                condition.getRecruitType(),
+                keywordOf(condition)
+        );
+
+        List<Long> orderedIds = orderByMatchRate(candidateIds, userScores);
+        List<Long> pageIds = slice(orderedIds, page, size);
+        List<JobPosting> postings = sortByIdOrder(jobPostingRepository.findAllById(pageIds), pageIds);
+
+        return new JobPostingListResponse(
+                toItems(postings, userId, userScores),
+                page,
+                size,
+                orderedIds.size(),
+                totalPages(orderedIds.size(), size)
+        );
+    }
+
+    private List<Long> orderByMatchRate(List<Long> candidateIds, Map<String, Integer> userScores) {
+        Map<Long, List<String>> stacksByPosting = techStacksByPosting(candidateIds);
+
+        // 점수가 같으면 원래 순서(최신순)를 그대로 둔다. 자바의 정렬은 순서를 흔들지 않는다.
+        return candidateIds.stream()
+                .sorted(Comparator.comparingInt(
+                        (Long id) -> matchRateOrZero(stacksByPosting.get(id), userScores)).reversed())
+                .toList();
+    }
+
+    private Map<Long, List<String>> techStacksByPosting(List<Long> candidateIds) {
+        if (candidateIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, List<String>> stacks = new LinkedHashMap<>();
+        for (Object[] row : jobPostingRepository.findTechStacksByIds(candidateIds)) {
+            stacks.computeIfAbsent((Long) row[0], key -> new ArrayList<>()).add((String) row[1]);
+        }
+        return stacks;
+    }
+
+    private int matchRateOrZero(List<String> requiredStacks, Map<String, Integer> userScores) {
+        Integer matchRate = MatchRateCalculator.calculate(requiredStacks, userScores);
+        return matchRate == null ? 0 : matchRate;
+    }
+
+    private List<JobPostingListItemResponse> toItems(List<JobPosting> postings, Long userId,
+                                                     Map<String, Integer> userScores) {
+        Set<Long> scrappedIds = scrappedIds(userId, postings);
+
+        return postings.stream()
+                .map(posting -> JobPostingListItemResponse.from(
+                        posting,
+                        MatchRateCalculator.calculate(posting.getTechStacks(), userScores),
+                        scrappedIds.contains(posting.getId())))
+                .toList();
+    }
+
+    private List<Long> slice(List<Long> ids, int page, int size) {
+        int from = Math.min(page * size, ids.size());
+        return ids.subList(from, Math.min(from + size, ids.size()));
+    }
+
+    /** findAllById 는 순서를 지켜 주지 않는다. 매긴 순서대로 다시 놓는다. */
+    private List<JobPosting> sortByIdOrder(List<JobPosting> postings, List<Long> orderedIds) {
+        Map<Long, JobPosting> byId = postings.stream()
+                .collect(java.util.stream.Collectors.toMap(JobPosting::getId, posting -> posting));
+
+        return orderedIds.stream().map(byId::get).filter(java.util.Objects::nonNull).toList();
+    }
+
+    private int totalPages(int totalElements, int size) {
+        return (int) Math.ceil((double) totalElements / size);
     }
 
     public JobPostingDetailResponse getJobPosting(Long jobPostingId, Long userId) {
@@ -66,7 +167,7 @@ public class JobPostingService {
 
     public List<JobPostingListItemResponse> getMyScrappedJobPostings(Long userId) {
         return jobBookmarkRepository.findScrappedJobPostings(userId).stream()
-                .map(posting -> JobPostingListItemResponse.from(posting, true))
+                .map(posting -> JobPostingListItemResponse.from(posting, null, true))
                 .toList();
     }
 

@@ -27,10 +27,12 @@ public record JobPostingListItemResponse(
         String applyUrl,
         /** 공고 글에서 뽑아낸 요구 기술스택. 사전에 없는 기술은 잡히지 않는다. */
         List<String> techStacks,
+        /** 내 기술스택과의 적합도. 아직 분석 결과가 없거나 공고에서 기술을 찾지 못했으면 null. */
+        Integer matchRate,
         boolean isScrapped
 ) {
 
-    public static JobPostingListItemResponse from(JobPosting posting, boolean scrapped) {
+    public static JobPostingListItemResponse from(JobPosting posting, Integer matchRate, boolean scrapped) {
         return new JobPostingListItemResponse(
                 posting.getId(),
                 posting.getCompanyCode(),
@@ -45,6 +47,7 @@ public record JobPostingListItemResponse(
                 posting.getStatus(),
                 posting.getApplyUrl(),
                 List.copyOf(posting.getTechStacks()),
+                matchRate,
                 scrapped
         );
     }
