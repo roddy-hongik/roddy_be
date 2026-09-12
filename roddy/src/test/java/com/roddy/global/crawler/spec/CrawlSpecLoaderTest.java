@@ -101,6 +101,53 @@ class CrawlSpecLoaderTest {
     }
 
     @Test
+    @DisplayName("상세 수집 명세는 전부 주소를 정할 방법과 본문을 꺼낼 방법을 갖고 있다")
+    void loadsEveryDetailSpec() {
+        List<CrawlSpec> withDetail = loader.loadAll().stream().filter(CrawlSpec::hasDetail).toList();
+
+        assertThat(withDetail).isNotEmpty();
+        assertThat(withDetail).allSatisfy(spec -> {
+            DetailSpec detail = spec.detail();
+            assertThat(detail.sourceType()).isNotNull();
+
+            // 상세 주소는 조립하거나, 레코드가 이미 들고 있어야 한다.
+            boolean hasUrl = detail.urlTemplate() != null
+                    || spec.fields().containsKey(detail.urlFrom())
+                    || spec.applyUrl() != null;
+            assertThat(hasUrl).isTrue();
+
+            if (detail.sourceType() == SourceType.HTML) {
+                assertThat(detail.bodySelector()).isNotBlank();
+            } else {
+                assertThat(detail.fields()).isNotEmpty();
+            }
+        });
+    }
+
+    @Test
+    @DisplayName("HTML 상세 명세는 본문과 섹션 셀렉터를 읽는다")
+    void readsHtmlDetailSpec() {
+        DetailSpec detail = loader.load("naver").detail();
+
+        assertThat(detail.sourceType()).isEqualTo(SourceType.HTML);
+        assertThat(detail.urlFrom()).isEqualTo("apply_url");
+        assertThat(detail.bodySelector()).isEqualTo("div.detail_wrap");
+        assertThat(detail.sectionBox()).isEqualTo("div.detail_box");
+        assertThat(detail.sectionTitle()).isEqualTo("h4.detail_title");
+    }
+
+    @Test
+    @DisplayName("JSON 상세 명세는 조립할 주소와 꺼낼 경로를 읽는다")
+    void readsJsonDetailSpec() {
+        DetailSpec detail = loader.load("woowahan").detail();
+
+        assertThat(detail.sourceType()).isEqualTo(SourceType.JSON);
+        assertThat(detail.urlTemplate())
+                .isEqualTo("https://career.woowahan.com/w1/recruits/{recruit_number}");
+        assertThat(detail.fields().get("description").single()).isEqualTo("data.recruitContents");
+    }
+
+    @Test
     @DisplayName("인재풀 제외 필터 명세를 읽는다")
     void readsFilterSpec() {
         CrawlSpec spec = loader.load("musinsa");
