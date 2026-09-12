@@ -39,16 +39,17 @@ public class JobPostingController {
     private final JobPostingMatchService jobPostingMatchService;
 
     @GetMapping
-    @Operation(summary = "채용공고 목록 조회")
+    @Operation(summary = "채용공고 목록 조회", description = "sort=match 면 매칭률 높은 순. 그 외에는 게시일 최신순")
     public ApiResponse<JobPostingListResponse> getJobPostings(
             @Valid @ModelAttribute JobPostingSearchCondition condition,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @RequestParam(required = false) String sort,
             @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
         return ApiResponse.onSuccess(
                 "채용공고 목록을 조회했습니다.",
-                jobPostingService.getJobPostings(condition, page, size, userIdOf(userDetails))
+                jobPostingService.getJobPostings(condition, page, size, sort, userIdOf(userDetails))
         );
     }
 

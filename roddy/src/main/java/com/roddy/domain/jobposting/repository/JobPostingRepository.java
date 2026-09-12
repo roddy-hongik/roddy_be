@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,4 +50,30 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
                             @Param("recruitType") RecruitType recruitType,
                             @Param("keyword") String keyword,
                             Pageable pageable);
+
+    /**
+     * 조건에 맞는 공고 id 전부. 기본 정렬 순서를 그대로 유지한다.
+     *
+     * <p>매칭률 순으로 정렬하려면 전체를 견줘 봐야 페이지를 나눌 수 있다. 공고 본문까지 다 읽으면
+     * 무겁기 때문에 id 만 가져온다. 조건절이 위 search 와 겹치지만, 엔티티를 읽는 질의와 id 만 읽는
+     * 질의를 JPQL 로 합칠 방법이 없다.
+     */
+    @Query("""
+            select jp.id from JobPosting jp
+            where jp.status = :status
+              and (:companyCode is null or jp.companyCode = :companyCode)
+              and (:recruitType is null or jp.recruitType = :recruitType)
+              and (:keyword is null
+                   or lower(jp.title) like :keyword
+                   or lower(jp.company) like :keyword)
+            order by case when jp.postedAt is null then 1 else 0 end, jp.postedAt desc, jp.id desc
+            """)
+    List<Long> searchIds(@Param("status") JobPostingStatus status,
+                         @Param("companyCode") String companyCode,
+                         @Param("recruitType") RecruitType recruitType,
+                         @Param("keyword") String keyword);
+
+    /** 공고 id → 요구 기술 쌍. 매칭률을 계산할 때 공고 본문까지 읽지 않기 위해 따로 둔다. */
+    @Query("select jp.id, stack from JobPosting jp join jp.techStacks stack where jp.id in :ids")
+    List<Object[]> findTechStacksByIds(@Param("ids") Collection<Long> ids);
 }
