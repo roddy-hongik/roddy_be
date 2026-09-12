@@ -159,13 +159,34 @@ class JobPostingMatchListTest {
     @DisplayName("검색 조건을 걸어도 그 안에서 매칭률 순으로 정렬한다")
     void sortsWithinFilteredResult() throws Exception {
         User user = analyzedUser("filtered@example.com");
+        // 검색어에 걸리지 않으면서 매칭률은 가장 높은 공고(Java 90점 하나만 요구).
+        // 검색 조건이 빠지면 이 공고가 맨 앞에 와서 아래 단언이 깨진다.
+        savePosting("P-4", "검색어 없는 채용", LocalDateTime.of(2026, 3, 15, 0, 0), Set.of("Java"));
 
         mockMvc.perform(get("/api/jobs")
                         .param("sort", "match").param("keyword", "공고")
                         .with(user(new UserDetailsImpl(user))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.totalElements").value(3))
-                .andExpect(jsonPath("$.result.jobs[0].title").value("중간공고"));
+                .andExpect(jsonPath("$.result.jobs.length()").value(3))
+                .andExpect(jsonPath("$.result.jobs[0].title").value("중간공고"))
+                .andExpect(jsonPath("$.result.jobs[0].matchRate").value(85))
+                .andExpect(jsonPath("$.result.jobs[1].title").value("오래된공고"))
+                .andExpect(jsonPath("$.result.jobs[2].title").value("최신공고"));
+    }
+
+    @Test
+    @DisplayName("범위를 넘어선 페이지를 요청해도 빈 목록을 준다")
+    void returnsEmptyPageBeyondRange() throws Exception {
+        User user = analyzedUser("out-of-range@example.com");
+
+        // page 에는 상한이 없다. page * size 가 int 범위를 넘으면 예전 계산으로는 음수가 됐다.
+        mockMvc.perform(get("/api/jobs")
+                        .param("sort", "match").param("page", "2000000000").param("size", "100")
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.totalElements").value(3))
+                .andExpect(jsonPath("$.result.jobs.length()").value(0));
     }
 
     @Test

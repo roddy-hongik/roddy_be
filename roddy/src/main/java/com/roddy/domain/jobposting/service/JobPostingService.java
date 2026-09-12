@@ -140,9 +140,17 @@ public class JobPostingService {
                 .toList();
     }
 
+    /**
+     * 요청한 페이지에 해당하는 부분만 잘라낸다.
+     *
+     * <p>페이지 번호에는 상한이 없어서 page * size 가 int 범위를 넘을 수 있다. 그대로 두면 음수가
+     * 되어 subList 가 터지므로 long 으로 계산한 뒤 목록 크기에 맞춘다. 범위를 넘어선 페이지는 빈
+     * 목록이 된다.
+     */
     private List<Long> slice(List<Long> ids, int page, int size) {
-        int from = Math.min(page * size, ids.size());
-        return ids.subList(from, Math.min(from + size, ids.size()));
+        int from = (int) Math.min((long) page * size, ids.size());
+        int to = (int) Math.min((long) from + size, ids.size());
+        return ids.subList(from, to);
     }
 
     /** findAllById 는 순서를 지켜 주지 않는다. 매긴 순서대로 다시 놓는다. */
