@@ -1,4 +1,4 @@
-package com.roddy.domain;
+package com.roddy.domain.analysis.entity;
 
 import com.roddy.domain.enums.Stack;
 import jakarta.persistence.*;
