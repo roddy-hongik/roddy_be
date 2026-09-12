@@ -11,17 +11,25 @@ import java.util.stream.Collectors;
  *
  * <p>값은 원본 JSON 의 모양을 그대로 유지한다(문자열 / 숫자 / 불리언 / 리스트 / 맵).
  * 도메인 타입으로의 변환은 적재 단계에서 한다.
+ *
+ * @param detailError 상세 페이지 수집이 실패한 이유. 공고 하나가 실패해도 나머지 수집은 계속한다.
  */
-public record CrawlRecord(Map<String, Object> values, Map<String, Object> extra) {
+public record CrawlRecord(Map<String, Object> values, Map<String, Object> extra, String detailError) {
 
     public static final String JOB_ID = "job_id";
     public static final String TITLE = "title";
     public static final String APPLY_URL = "apply_url";
+    public static final String DESCRIPTION = "description";
+    public static final String SECTIONS = "sections";
 
     public CrawlRecord {
         // 해석되지 않은 필드는 null 로 남으므로 null 값을 허용하는 맵을 쓴다.
         values = Collections.unmodifiableMap(new LinkedHashMap<>(values));
         extra = Collections.unmodifiableMap(new LinkedHashMap<>(extra));
+    }
+
+    public CrawlRecord(Map<String, Object> values, Map<String, Object> extra) {
+        this(values, extra, null);
     }
 
     public Object value(String key) {
@@ -56,5 +64,23 @@ public record CrawlRecord(Map<String, Object> values, Map<String, Object> extra)
      */
     public boolean isBlank(String key) {
         return text(key) == null;
+    }
+
+    /** 상세 수집으로 알아낸 값을 얹은 새 레코드. */
+    public CrawlRecord merge(Map<String, Object> overrides) {
+        if (overrides.isEmpty()) {
+            return this;
+        }
+        Map<String, Object> merged = new LinkedHashMap<>(values);
+        merged.putAll(overrides);
+        return new CrawlRecord(merged, extra, detailError);
+    }
+
+    public CrawlRecord withDetailError(String detailError) {
+        return new CrawlRecord(values, extra, detailError);
+    }
+
+    public boolean hasDetailError() {
+        return detailError != null;
     }
 }
