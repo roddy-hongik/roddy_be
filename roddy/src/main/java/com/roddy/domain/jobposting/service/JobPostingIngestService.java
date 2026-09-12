@@ -31,6 +31,7 @@ public class JobPostingIngestService {
 
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingSnapshotConverter converter;
+    private final TechStackExtractor techStackExtractor;
 
     @Transactional
     public IngestSummary ingest(CrawlSpec spec, CrawlResult result, LocalDateTime crawledAt) {
@@ -47,16 +48,22 @@ public class JobPostingIngestService {
 
                 Optional<JobPosting> existing = jobPostingRepository
                         .findByCompanyCodeAndExternalId(snapshot.companyCode(), snapshot.externalId());
+                JobPosting posting;
                 if (existing.isEmpty()) {
-                    jobPostingRepository.save(JobPosting.create(snapshot, crawledAt));
+                    posting = jobPostingRepository.save(JobPosting.create(snapshot, crawledAt));
                     created++;
                 } else if (existing.get().hasSameContent(snapshot)) {
-                    existing.get().touch(crawledAt);
+                    posting = existing.get();
+                    posting.touch(crawledAt);
                     unchanged++;
                 } else {
-                    existing.get().update(snapshot, crawledAt);
+                    posting = existing.get();
+                    posting.update(snapshot, crawledAt);
                     updated++;
                 }
+
+                // 내용이 그대로여도 다시 뽑는다. 사전이 늘어나면 기존 공고도 따라 채워진다.
+                posting.updateTechStacks(techStackExtractor.extract(snapshot));
             } catch (RuntimeException e) {
                 failed++;
                 log.warn("[{}] 공고를 적재하지 못했습니다: {}", spec.company(), e.getMessage());

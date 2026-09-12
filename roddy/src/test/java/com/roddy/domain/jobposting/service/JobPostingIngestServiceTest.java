@@ -17,12 +17,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,6 +40,9 @@ class JobPostingIngestServiceTest {
 
     @Autowired
     private JobPostingRepository jobPostingRepository;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     @MockitoBean
     private S3Uploader s3Uploader;
@@ -145,6 +150,30 @@ class JobPostingIngestServiceTest {
     }
 
     @Test
+    @DisplayName("적재하면서 공고 글에서 요구 기술스택을 뽑아 둔다")
+    void extractsTechStacksWhileIngesting() {
+        CrawlRecord withContent = record("P-1", "백엔드 개발자",
+                values -> values.put("description", "Spring Boot 와 MySQL 로 API 를 개발합니다. Java 경력 3년 이상."));
+
+        ingestService.ingest(spec, healthy(withContent), FIRST_RUN);
+
+        assertThat(techStacksOf("P-1")).contains("Spring Boot", "MySQL", "Java");
+    }
+
+    @Test
+    @DisplayName("내용이 그대로여도 기술스택은 다시 뽑는다")
+    void reExtractsTechStacksOnUnchangedPosting() {
+        CrawlRecord withContent = record("P-1", "백엔드 개발자",
+                values -> values.put("description", "Kotlin 으로 개발합니다."));
+        ingestService.ingest(spec, healthy(withContent), FIRST_RUN);
+
+        IngestSummary summary = ingestService.ingest(spec, healthy(withContent), SECOND_RUN);
+
+        assertThat(summary.unchanged()).isEqualTo(1);
+        assertThat(techStacksOf("P-1")).contains("Kotlin");
+    }
+
+    @Test
     @DisplayName("수집 원본이 마감이라고 알려주면 그대로 마감 상태로 저장한다")
     void respectsClosedStateFromSource() {
         CrawlRecord closed = record("P-1", "백엔드", values -> values.put("is_closed", true));
@@ -152,6 +181,11 @@ class JobPostingIngestServiceTest {
         ingestService.ingest(spec, healthy(closed), FIRST_RUN);
 
         assertThat(find("P-1").getStatus()).isEqualTo(JobPostingStatus.CLOSED);
+    }
+
+    /** 기술스택은 지연 로딩이라 트랜잭션 안에서 읽어야 한다. */
+    private Set<String> techStacksOf(String externalId) {
+        return transactionTemplate.execute(status -> Set.copyOf(find(externalId).getTechStacks()));
     }
 
     private JobPosting find(String externalId) {
