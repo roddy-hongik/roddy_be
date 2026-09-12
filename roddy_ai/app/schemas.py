@@ -11,6 +11,8 @@ class AnalysisRequest(BaseModel):
 
     # 깃허브를 연결하지 않은 사용자도 있다. 포트폴리오만으로도 분석한다.
     github_url: Optional[str] = None
+    # 사용자 토큰. 없으면 공개 API 한도(IP 당 시간당 60회)에 묶인다. 로그에 남기지 않는다.
+    github_token: Optional[str] = None
     # 백엔드가 만든 S3 presigned URL. AI 서버는 S3 자격증명을 갖지 않는다.
     portfolio_url: Optional[str] = None
     portfolio_file_name: Optional[str] = None

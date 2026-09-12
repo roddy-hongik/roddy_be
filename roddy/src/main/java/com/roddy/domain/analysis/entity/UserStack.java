@@ -52,10 +52,17 @@ public class UserStack extends BaseEntity {
     public static UserStack create(User user, StackDetail stackDetail,
                                    AnalysisReport analysisReport,
                                    int score, String description) {
+        return create(user, stackDetail, analysisReport, null, score, description);
+    }
+
+    public static UserStack create(User user, StackDetail stackDetail,
+                                   AnalysisReport analysisReport, StackLevel stackLevel,
+                                   int score, String description) {
         return UserStack.builder()
                 .user(user)
                 .stackDetail(stackDetail)
                 .analysisReport(analysisReport)
+                .stackLevel(stackLevel)
                 .score(score)
                 .description(description)
                 .build();
