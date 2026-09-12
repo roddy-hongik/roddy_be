@@ -58,6 +58,9 @@ dependencies {
 	// openai
 	implementation 'com.openai:openai-java:4.35.0'
 
+	// 수집 명세(YAML) 파싱
+	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml'
+
 	//S3
 	implementation "io.awspring.cloud:spring-cloud-aws-starter-s3:${springCloudAwsVersion}"
 
