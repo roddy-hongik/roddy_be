@@ -30,6 +30,9 @@ fields:
   location: workPlaceCodeNm
   job_category: fldCodeNm
 
+# TODO: apply_url 이 없어 적재 시 전 건이 실패한다. 공고 상세 URL 패턴을 확인해
+#       apply_url.template 을 추가해야 한다 (talent.hyundai.com 상세 페이지 규칙 확인 필요).
+
 extra:
   career_type: channelCodeNm
   sector: secCodeNm
