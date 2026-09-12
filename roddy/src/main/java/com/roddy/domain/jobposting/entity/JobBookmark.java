@@ -1,5 +1,6 @@
-package com.roddy.domain;
+package com.roddy.domain.jobposting.entity;
 
+import com.roddy.domain.BaseEntity;
 import com.roddy.domain.auth.entity.User;
 import jakarta.persistence.*;
 import lombok.*;

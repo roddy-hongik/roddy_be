@@ -1,6 +1,6 @@
-package com.roddy.domain;
+package com.roddy.domain.jobposting.entity;
 
-
+import com.roddy.domain.BaseEntity;
 import com.roddy.domain.auth.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -23,7 +23,7 @@ public class RecommendJobPosting extends BaseEntity {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY,optional = false)
-    @JoinColumn(name = "job_post_id",nullable = false)
+    @JoinColumn(name = "job_posting_id", nullable = false)
     private JobPosting jobPosting;
 
     @Column(nullable = false)
