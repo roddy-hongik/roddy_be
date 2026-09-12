@@ -8,6 +8,7 @@ import com.roddy.domain.mypage.dto.response.MyPageProfileResponse;
 import com.roddy.domain.mypage.repository.DesiredCompanyRepository;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
 import com.roddy.global.apiPayload.exception.GeneralException;
+import com.roddy.global.config.s3.S3ObjectUrlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class MyPageService {
     private final UserRepository userRepository;
     private final DesiredCompanyRepository desiredCompanyRepository;
     private final StringRedisTemplate redisTemplate;
+    private final S3ObjectUrlService s3ObjectUrlService;
 
     @Transactional(readOnly = true)
     public MyPageProfileResponse getProfile(Long userId) {
@@ -60,9 +62,17 @@ public class MyPageService {
                 desiredCompany,
                 user.getExperienceYears() == null ? null : user.getExperienceYears().name(),
                 user.getPortfolioFileName(),
-                user.getPortfolioUrl(),
+                portfolioUrl(user),
                 user.isGithubConnected()
         );
+    }
+
+    /** 저장해 둔 키로 볼 때마다 새 주소를 만든다. presigned 주소는 몇 분이면 만료된다. */
+    private String portfolioUrl(User user) {
+        String objectKey = user.getPortfolioObjectKey();
+        return (objectKey == null || objectKey.isBlank())
+                ? null
+                : s3ObjectUrlService.createPresignedGetUrl(objectKey);
     }
 
     private User getActiveUser(Long userId) {
