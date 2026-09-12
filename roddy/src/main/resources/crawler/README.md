@@ -82,12 +82,25 @@ metadata_extraction:           # [{name, value}] 배열에서 이름으로 찾�
 extra:                         # 정규화 대상은 아니지만 원본으로 남길 값
   d_day: deadlineDDay
 
-detail:                        # 상세 본문 수집 (아직 미구현 — 후속 작업)
+detail:                        # 공고마다 상세 페이지를 한 번 더 받아 본문 채우기
   enabled: true
+  source_type: html            # json | embedded_json | html
+  url_template: https://career.woowahan.com/w1/recruits/{recruit_number}
+  url_from: apply_url          # url_template 이 없을 때 쓸 레코드 필드 (기본값 apply_url)
+  script_id: __NEXT_DATA__     # embedded_json 일 때
+  select: {...}                # 목록과 같은 형태
+  fields:                      # json / embedded_json 일 때
+    description: data.recruitContents
+  body_selector: .desc_cont    # html 일 때 본문 요소
+  section_box: div.detail_box  # 제목이 붙은 섹션이 반복되는 요소
+  section_title: h4.detail_title
 ```
 
 ## 주의
 
 - 대부분의 회사는 마감 여부를 알려주지 않는다. 목록에서 공고가 사라지는 것으로 마감을 판정해야 한다.
-- 목록 응답에 본문을 주는 회사는 얼마 없다. 본문은 `detail` 수집이 붙어야 채워진다.
+- 목록 응답에 본문을 주는 회사는 얼마 없다. 본문은 `detail` 수집으로 채워진다.
+- `detail` 은 공고 수만큼 요청이 나간다. 요청 사이를 띄우고, 공고 하나가 실패해도 나머지는 계속 받는다.
 - 회사 사이트에 부담을 주지 않도록, 수집은 회사 단위로 순차 실행한다.
+- 목록의 `source_type: html` 은 아직 지원하지 않는다. 쓰는 회사가 없어서다
+  (상세의 `source_type: html` 은 지원한다).

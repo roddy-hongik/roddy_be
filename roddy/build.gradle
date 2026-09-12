@@ -60,6 +60,7 @@ dependencies {
 
 	// 수집 명세(YAML) 파싱
 	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml'
+	implementation 'org.jsoup:jsoup:1.18.3'
 
 	//S3
 	implementation "io.awspring.cloud:spring-cloud-aws-starter-s3:${springCloudAwsVersion}"

@@ -1,5 +1,6 @@
 package com.roddy.global.crawler.engine;
 
+import com.roddy.global.crawler.CrawlRecord;
 import com.roddy.global.crawler.CrawlResult;
 import com.roddy.global.crawler.CrawlSpecFixtures;
 import com.roddy.global.crawler.spec.CrawlSpec;
@@ -9,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -24,7 +27,88 @@ class DeclarativeCrawlerTest {
     void setUp() {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        crawler = new DeclarativeCrawler(new CrawlHttpClient(builder.build()));
+        crawler = new DeclarativeCrawler(new CrawlHttpClient(builder.build()), Duration.ZERO);
+    }
+
+    @Test
+    @DisplayName("목록을 받은 뒤 공고마다 상세 본문까지 채운다")
+    void collectsListThenDetail() {
+        CrawlSpec spec = CrawlSpecFixtures.spec("""
+                company: woowahan
+                source_type: json
+                list:
+                  url: https://example.com/w1/recruits
+                  response_path: data.list
+                required: [job_id, title]
+                fields: {job_id: id, title: title, recruit_number: recruitNumber}
+                detail:
+                  enabled: true
+                  source_type: json
+                  url_template: https://example.com/w1/recruits/{recruit_number}
+                  fields: {description: data.recruitContents}
+                """);
+
+        server.expect(requestTo("https://example.com/w1/recruits"))
+                .andRespond(withSuccess("""
+                        {"data": {"list": [
+                          {"id": "1", "title": "서버 개발자", "recruitNumber": "R1"},
+                          {"id": "2", "title": "안드로이드 개발자", "recruitNumber": "R2"}
+                        ]}}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://example.com/w1/recruits/R1"))
+                .andRespond(withSuccess("""
+                        {"data": {"recruitContents": "서버 개발자 본문"}}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://example.com/w1/recruits/R2"))
+                .andRespond(withSuccess("""
+                        {"data": {"recruitContents": "안드로이드 개발자 본문"}}
+                        """, MediaType.APPLICATION_JSON));
+
+        CrawlResult result = crawler.collect(spec);
+
+        server.verify();
+        assertThat(result.isHealthy()).isTrue();
+        assertThat(result.detailFailureCount()).isZero();
+        assertThat(result.records())
+                .extracting(record -> record.text(CrawlRecord.DESCRIPTION))
+                .containsExactly("서버 개발자 본문", "안드로이드 개발자 본문");
+    }
+
+    @Test
+    @DisplayName("상세 건수를 제한하면 목록은 전부, 상세는 일부만 받는다")
+    void limitsDetailRequests() {
+        CrawlSpec spec = CrawlSpecFixtures.spec("""
+                company: woowahan
+                source_type: json
+                list:
+                  url: https://example.com/w1/recruits
+                  response_path: data.list
+                required: [job_id, title]
+                fields: {job_id: id, title: title}
+                detail:
+                  enabled: true
+                  source_type: json
+                  url_template: https://example.com/w1/recruits/{job_id}
+                  fields: {description: data.recruitContents}
+                """);
+
+        server.expect(requestTo("https://example.com/w1/recruits"))
+                .andRespond(withSuccess("""
+                        {"data": {"list": [
+                          {"id": "1", "title": "서버 개발자"},
+                          {"id": "2", "title": "안드로이드 개발자"}
+                        ]}}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://example.com/w1/recruits/1"))
+                .andRespond(withSuccess("""
+                        {"data": {"recruitContents": "서버 개발자 본문"}}
+                        """, MediaType.APPLICATION_JSON));
+
+        CrawlResult result = crawler.collect(spec, 1);
+
+        server.verify();
+        assertThat(result.size()).isEqualTo(2);
+        assertThat(result.records().get(1).value(CrawlRecord.DESCRIPTION)).isNull();
     }
 
     @Test

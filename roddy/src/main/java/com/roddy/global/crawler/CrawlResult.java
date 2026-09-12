@@ -21,4 +21,9 @@ public record CrawlResult(String company, List<CrawlRecord> records, List<String
     public int size() {
         return records.size();
     }
+
+    /** 상세 페이지를 받아오지 못한 공고 수. 본문이 비어 있는 이유를 추적할 때 쓴다. */
+    public long detailFailureCount() {
+        return records.stream().filter(CrawlRecord::hasDetailError).count();
+    }
 }
