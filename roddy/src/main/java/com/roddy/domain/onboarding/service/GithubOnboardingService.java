@@ -97,7 +97,8 @@ public class GithubOnboardingService {
             GithubUserProfile githubUserProfile = fetchGithubUserProfile(tokenResponse.accessToken());
 
             User user = getUser(userId);
-            user.connectGithub(String.valueOf(githubUserProfile.id()), githubUserProfile.htmlUrl());
+            user.connectGithub(String.valueOf(githubUserProfile.id()), githubUserProfile.htmlUrl(),
+                    tokenResponse.accessToken());
 
             return buildFrontendRedirect("success", "github_connected");
         } catch (GeneralException exception) {
