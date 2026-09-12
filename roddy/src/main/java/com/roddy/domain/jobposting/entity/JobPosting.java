@@ -1,5 +1,6 @@
-package com.roddy.domain;
+package com.roddy.domain.jobposting.entity;
 
+import com.roddy.domain.BaseEntity;
 import com.roddy.domain.enums.RecruitType;
 import com.roddy.domain.enums.JobPostingStatus;
 import jakarta.persistence.*;
