@@ -10,6 +10,7 @@ import com.roddy.domain.enums.Role;
 import com.roddy.domain.enums.SocialType;
 import com.roddy.domain.mypage.entity.DesiredCompany;
 import com.roddy.domain.mypage.repository.DesiredCompanyRepository;
+import com.roddy.global.config.s3.S3ObjectUrlService;
 import com.roddy.global.security.UserDetailsImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,8 @@ import org.springframework.web.context.WebApplicationContext;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -59,11 +62,18 @@ class MyPageControllerTest {
     @MockitoBean
     private SocialAuthService socialAuthService;
 
+    /** 포트폴리오 주소는 볼 때마다 S3 에서 새로 만든다. 테스트에서는 실제로 서명하지 않는다. */
+    @MockitoBean
+    private S3ObjectUrlService s3ObjectUrlService;
+
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
                 .apply(springSecurity())
                 .build();
+
+        given(s3ObjectUrlService.createPresignedGetUrl(anyString()))
+                .willReturn("https://cdn.example.com/portfolio.pdf?signed");
 
         desiredCompanyRepository.deleteAll();
         userRepository.deleteAll();
@@ -148,7 +158,7 @@ class MyPageControllerTest {
                 27,
                 ExperienceLevel.JUNIOR,
                 DesiredJob.BACKEND,
-                "https://cdn.example.com/portfolio.pdf",
+                "portfolio/1/portfolio.pdf",
                 "portfolio.pdf",
                 LocalDateTime.now()
         );

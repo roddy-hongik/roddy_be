@@ -23,7 +23,9 @@ def extract_login(github_url: Optional[str]) -> Optional[str]:
     return matched.group(1) if matched else None
 
 
-def collect_repositories(github_url: Optional[str]) -> Tuple[List[Repository], List[str]]:
+def collect_repositories(
+    github_url: Optional[str], github_token: Optional[str] = None
+) -> Tuple[List[Repository], List[str]]:
     """
     공개 저장소를 최근 갱신순으로 모은다.
 
@@ -36,7 +38,7 @@ def collect_repositories(github_url: Optional[str]) -> Tuple[List[Repository], L
 
     warnings: List[str] = []
     try:
-        with httpx.Client(timeout=settings.github_timeout_seconds, headers=_headers()) as client:
+        with httpx.Client(timeout=settings.github_timeout_seconds, headers=_headers(github_token)) as client:
             raw_repositories = _fetch_repositories(client, login)
             repositories = [
                 _to_repository(client, login, raw)
@@ -58,13 +60,16 @@ def collect_repositories(github_url: Optional[str]) -> Tuple[List[Repository], L
         return [], ["깃허브 저장소를 불러오지 못했습니다."]
 
 
-def _headers() -> dict:
+def _headers(github_token: Optional[str] = None) -> dict:
+    """사용자 토큰이 있으면 그것을 쓴다. 한도가 사용자마다 따로 잡혀 서로 영향을 주지 않는다."""
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "roddy-ai",
     }
-    if settings.github_token:
-        headers["Authorization"] = "Bearer %s" % settings.github_token
+
+    token = github_token or settings.github_token
+    if token:
+        headers["Authorization"] = "Bearer %s" % token
     return headers
 
 

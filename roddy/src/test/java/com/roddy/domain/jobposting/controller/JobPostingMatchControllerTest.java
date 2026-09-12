@@ -214,12 +214,18 @@ class JobPostingMatchControllerTest {
 
     private void saveUserStack(User user, String stackName, int score) {
         AnalysisReport report = analysisReportRepository.findByUserId(user.getId())
-                .orElseGet(() -> analysisReportRepository.save(AnalysisReport.create(
-                        user, "분석 리포트", 70, "요약", "깃허브 분석", "포트폴리오 분석")));
+                .orElseGet(() -> analysisReportRepository.save(completedReport(user)));
         StackDetail detail = stackDetailRepository.save(
                 StackDetail.create(Stack.ARCHITECTURE, stackName, stackName + " 숙련도"));
 
         userStackRepository.save(UserStack.create(user, detail, report, score, "설명"));
+    }
+
+    /** 분석이 끝난 리포트. 분석 도메인이 채우는 것과 같은 모양이다. */
+    private AnalysisReport completedReport(User user) {
+        AnalysisReport report = AnalysisReport.pending(user);
+        report.complete("분석 리포트", 70, "요약", "깃허브 분석", "포트폴리오 분석", CRAWLED_AT);
+        return report;
     }
 
     private User saveUser(String email) {

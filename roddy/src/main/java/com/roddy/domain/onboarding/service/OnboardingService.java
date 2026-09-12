@@ -74,7 +74,7 @@ public class OnboardingService {
                 request.getAge(),
                 experienceLevel,
                 desiredJob,
-                s3ObjectUrlService.createPresignedGetUrl(request.getPortfolioObjectKey()),
+                request.getPortfolioObjectKey().trim(),
                 request.getPortfolioFileName().trim(),
                 LocalDateTime.now()
         );

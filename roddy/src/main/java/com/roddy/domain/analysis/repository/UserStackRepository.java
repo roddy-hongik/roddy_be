@@ -16,4 +16,7 @@ public interface UserStackRepository extends JpaRepository<UserStack, Long> {
             where us.user.id = :userId
             """)
     List<UserStack> findAllWithStackDetailByUserId(@Param("userId") Long userId);
+
+    /** 다시 분석할 때 기술스택을 통째로 갈아끼우기 위해 쓴다. */
+    void deleteAllByUserId(Long userId);
 }

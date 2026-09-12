@@ -36,7 +36,7 @@ def create_analysis(
     """
     logger.info("분석을 시작합니다. userId=%s", request.user_id)
 
-    repositories, github_warnings = github.collect_repositories(request.github_url)
+    repositories, github_warnings = github.collect_repositories(request.github_url, request.github_token)
     portfolio_text, portfolio_warnings = portfolio.extract_text(
         request.portfolio_url, request.portfolio_file_name
     )

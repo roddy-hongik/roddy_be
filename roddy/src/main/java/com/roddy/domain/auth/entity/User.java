@@ -63,7 +63,13 @@ public class User extends BaseEntity {
 
     private String socialId;
 
-    private String portfolioUrl;
+    /**
+     * 포트폴리오 파일의 S3 객체 키.
+     *
+     * <p>예전에는 presigned 주소를 그대로 저장했는데, 그 주소는 몇 분 뒤 만료된다. 볼 때마다 키로
+     * 새 주소를 만들어야 한다.
+     */
+    private String portfolioObjectKey;
 
     private String portfolioFileName;
 
@@ -160,7 +166,7 @@ public class User extends BaseEntity {
             int age,
             ExperienceLevel experienceYears,
             DesiredJob desiredJob,
-            String portfolioUrl,
+            String portfolioObjectKey,
             String portfolioFileName,
             LocalDateTime portfolioUploadedAt
     ) {
@@ -169,7 +175,7 @@ public class User extends BaseEntity {
         this.age = age;
         this.experienceYears = experienceYears;
         this.desiredJob = desiredJob;
-        this.portfolioUrl = portfolioUrl;
+        this.portfolioObjectKey = portfolioObjectKey;
         this.portfolioFileName = portfolioFileName;
         this.portfolioUploadedAt = portfolioUploadedAt;
         this.isOnboarded = true;
