@@ -40,6 +40,9 @@ public enum GeneralErrorCode implements BaseErrorCode {
     COMMUNITY_COMMENT_ALREADY_REPORTED(HttpStatus.CONFLICT, "COMMUNITY_4092", "이미 신고한 댓글입니다."),
     COMMUNITY_COMMENT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "COMMUNITY_4031", "본인 댓글만 삭제할 수 있습니다."),
 
+    // 채용공고 에러
+    JOB_POSTING_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_4041", "채용공고를 찾을 수 없습니다."),
+
     // 스터디 에러
     STUDY_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4041", "스터디 모집글을 찾을 수 없습니다."),
     STUDY_APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4042", "스터디 지원 내역을 찾을 수 없습니다."),
