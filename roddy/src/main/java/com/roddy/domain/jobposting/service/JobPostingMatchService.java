@@ -1,7 +1,6 @@
 package com.roddy.domain.jobposting.service;
 
-import com.roddy.domain.analysis.entity.UserStack;
-import com.roddy.domain.analysis.repository.UserStackRepository;
+import com.roddy.domain.analysis.service.UserTechStackReader;
 import com.roddy.domain.jobposting.dto.response.JobPostingMatchResponse;
 import com.roddy.domain.jobposting.dto.response.JobPostingMatchResponse.JobMatchStackResponse;
 import com.roddy.domain.jobposting.entity.JobPosting;
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,18 +26,16 @@ import java.util.Map;
 @Transactional(readOnly = true)
 public class JobPostingMatchService {
 
-    private static final int MIN_SCORE = 0;
-    private static final int MAX_SCORE = 100;
+    private static final int NO_SCORE = 0;
 
     private final JobPostingRepository jobPostingRepository;
-    private final UserStackRepository userStackRepository;
-    private final TechStackExtractor techStackExtractor;
+    private final UserTechStackReader userTechStackReader;
 
     public JobPostingMatchResponse getMatch(Long jobPostingId, Long userId) {
         JobPosting posting = jobPostingRepository.findById(jobPostingId)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.JOB_POSTING_NOT_FOUND));
 
-        Map<String, Integer> userScores = userScores(userId);
+        Map<String, Integer> userScores = userTechStackReader.read(userId);
         List<JobMatchStackResponse> stacks = toStacks(posting, userScores);
         List<String> missing = stacks.stream()
                 .filter(stack -> !stack.held())
@@ -61,7 +57,7 @@ public class JobPostingMatchService {
     private List<JobMatchStackResponse> toStacks(JobPosting posting, Map<String, Integer> userScores) {
         return posting.getTechStacks().stream()
                 .map(name -> new JobMatchStackResponse(
-                        name, userScores.getOrDefault(name, MIN_SCORE), userScores.containsKey(name)))
+                        name, userScores.getOrDefault(name, NO_SCORE), userScores.containsKey(name)))
                 .sorted(Comparator.comparingInt(JobMatchStackResponse::userScore).reversed()
                         .thenComparing(JobMatchStackResponse::name))
                 .toList();
@@ -80,19 +76,5 @@ public class JobPostingMatchService {
         }
         int total = stacks.stream().mapToInt(JobMatchStackResponse::userScore).sum();
         return Math.round((float) total / stacks.size());
-    }
-
-    /** 같은 기술이 여러 번 나오면 높은 점수를 남긴다. */
-    private Map<String, Integer> userScores(Long userId) {
-        Map<String, Integer> scores = new HashMap<>();
-
-        for (UserStack userStack : userStackRepository.findAllWithStackDetailByUserId(userId)) {
-            String name = techStackExtractor.canonicalize(userStack.getStackDetail().getStackName());
-            if (name == null) {
-                continue;
-            }
-            scores.merge(name, Math.clamp(userStack.getScore(), MIN_SCORE, MAX_SCORE), Math::max);
-        }
-        return scores;
     }
 }
