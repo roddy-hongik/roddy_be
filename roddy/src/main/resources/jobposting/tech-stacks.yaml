@@ -1,0 +1,173 @@
+# 채용공고 본문에서 찾아낼 기술스택 사전.
+#
+# name    : 저장하고 화면에 보여줄 이름
+# aliases : 본문에 등장할 수 있는 다른 표기 (한글 표기, 줄임말, 옛 이름)
+#
+# 긴 표기부터 먼저 찾고 찾은 자리는 가려서, 짧은 표기가 겹쳐 잡히지 않게 한다.
+# (예: "자바스크립트" 를 먼저 찾으므로 그 안의 "자바" 는 Java 로 잡히지 않는다)
+stacks:
+  # 언어
+  - name: Java
+    aliases: [자바]
+  - name: Kotlin
+    aliases: [코틀린]
+  - name: Python
+    aliases: [파이썬]
+  - name: JavaScript
+    aliases: [자바스크립트, JS]
+  - name: TypeScript
+    aliases: [타입스크립트, TS]
+  - name: Go
+    aliases: [Golang, 고랭]
+  - name: Rust
+    aliases: [러스트]
+  - name: Swift
+    aliases: [스위프트]
+  - name: Scala
+    aliases: [스칼라]
+  - name: Ruby
+    aliases: [루비]
+  - name: PHP
+  - name: C++
+    aliases: [CPP]
+  - name: C#
+    aliases: [C Sharp]
+  - name: C
+  - name: SQL
+  - name: Shell
+    aliases: [셸 스크립트, 쉘 스크립트]
+
+  # 백엔드 프레임워크
+  - name: Spring
+    aliases: [스프링]
+  - name: Spring Boot
+    aliases: [스프링부트, 스프링 부트]
+  - name: Spring Batch
+  - name: Spring Security
+  - name: JPA
+    aliases: [Hibernate, 하이버네이트]
+  - name: MyBatis
+  - name: QueryDSL
+  - name: Node.js
+    aliases: [NodeJS, 노드js, 노드]
+  - name: NestJS
+  - name: Express
+  - name: Django
+    aliases: [장고]
+  - name: FastAPI
+  - name: Flask
+  - name: Ktor
+  - name: gRPC
+  - name: GraphQL
+
+  # 프론트엔드
+  - name: React
+    aliases: [리액트]
+  - name: Next.js
+    aliases: [NextJS, 넥스트js]
+  - name: Vue
+    aliases: [Vue.js, 뷰js]
+  - name: Nuxt
+  - name: Angular
+    aliases: [앵귤러]
+  - name: Svelte
+  - name: Redux
+  - name: Zustand
+  - name: TanStack Query
+    aliases: [React Query, 리액트 쿼리]
+  - name: Webpack
+  - name: Vite
+  - name: Storybook
+  - name: HTML
+  - name: CSS
+  - name: Tailwind CSS
+    aliases: [TailwindCSS, Tailwind]
+
+  # 모바일
+  - name: Android
+    aliases: [안드로이드]
+  - name: iOS
+  - name: SwiftUI
+  - name: Jetpack Compose
+    aliases: [Compose]
+  - name: Flutter
+    aliases: [플러터]
+  - name: React Native
+    aliases: [리액트 네이티브, RN]
+
+  # 데이터베이스 / 저장소
+  - name: MySQL
+  - name: PostgreSQL
+    aliases: [Postgres]
+  - name: Oracle
+    aliases: [오라클]
+  - name: MongoDB
+    aliases: [몽고DB]
+  - name: Redis
+    aliases: [레디스]
+  - name: Elasticsearch
+    aliases: [엘라스틱서치, ES]
+  - name: Neo4j
+  - name: DynamoDB
+  - name: Cassandra
+  - name: ClickHouse
+
+  # 데이터 / 머신러닝
+  - name: Kafka
+    aliases: [카프카]
+  - name: Spark
+    aliases: [Apache Spark, 스파크]
+  - name: Airflow
+    aliases: [에어플로우]
+  - name: Hadoop
+    aliases: [하둡]
+  - name: Flink
+  - name: dbt
+  - name: PyTorch
+    aliases: [파이토치]
+  - name: TensorFlow
+    aliases: [텐서플로우, 텐서플로]
+  - name: LLM
+    aliases: [대규모 언어 모델]
+  - name: Pandas
+  - name: NumPy
+
+  # 인프라 / 운영
+  - name: AWS
+  - name: GCP
+    aliases: [Google Cloud]
+  - name: Azure
+  - name: NCP
+    aliases: [네이버 클라우드]
+  - name: Docker
+    aliases: [도커]
+  - name: Kubernetes
+    aliases: [쿠버네티스, K8s]
+  - name: Terraform
+    aliases: [테라폼]
+  - name: Jenkins
+    aliases: [젠킨스]
+  - name: ArgoCD
+  - name: GitHub Actions
+  - name: Nginx
+  - name: Kong
+  - name: Prometheus
+    aliases: [프로메테우스]
+  - name: Grafana
+    aliases: [그라파나]
+  - name: Datadog
+  - name: Linux
+    aliases: [리눅스]
+
+  # 협업 / 방법론
+  - name: Git
+    aliases: [깃]
+  - name: Jira
+    aliases: [지라]
+  - name: MSA
+    aliases: [마이크로서비스, Microservice]
+  - name: CI/CD
+    aliases: [CICD]
+  - name: DDD
+    aliases: [도메인 주도 설계]
+  - name: TDD

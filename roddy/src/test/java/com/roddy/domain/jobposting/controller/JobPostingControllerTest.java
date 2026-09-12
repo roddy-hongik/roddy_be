@@ -27,8 +27,10 @@ import org.springframework.web.context.WebApplicationContext;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -193,6 +195,20 @@ class JobPostingControllerTest {
     }
 
     @Test
+    @DisplayName("뽑아 둔 요구 기술스택을 목록과 상세에 함께 준다")
+    void returnsTechStacks() throws Exception {
+        JobPosting posting = savePostingWithTechStacks("P-1", "백엔드 개발자", Set.of("Java", "Spring Boot"));
+
+        mockMvc.perform(get("/api/jobs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.jobs[0].techStacks", containsInAnyOrder("Java", "Spring Boot")));
+
+        mockMvc.perform(get("/api/jobs/{jobPostingId}", posting.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.techStacks", containsInAnyOrder("Java", "Spring Boot")));
+    }
+
+    @Test
     @DisplayName("스크랩한 사용자에게는 상세에서도 스크랩 상태를 알려준다")
     void marksScrappedPostingInDetail() throws Exception {
         User user = saveUser("detail-scrap@example.com", "상세스크랩유저");
@@ -318,6 +334,13 @@ class JobPostingControllerTest {
         customizer.accept(builder);
 
         return jobPostingRepository.save(JobPosting.create(builder.build(), CRAWLED_AT));
+    }
+
+    private JobPosting savePostingWithTechStacks(String externalId, String title, Set<String> techStacks) {
+        JobPosting posting = savePosting(externalId, title, builder -> {
+        });
+        posting.updateTechStacks(techStacks);
+        return jobPostingRepository.save(posting);
     }
 
     private User saveUser(String email, String nickname) {

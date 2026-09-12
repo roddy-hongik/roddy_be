@@ -4,6 +4,7 @@ import com.roddy.domain.enums.JobPostingStatus;
 import com.roddy.domain.jobposting.entity.JobPosting;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 목록에 뿌릴 공고 한 건.
@@ -24,6 +25,8 @@ public record JobPostingListItemResponse(
         LocalDateTime deadline,
         JobPostingStatus status,
         String applyUrl,
+        /** 공고 글에서 뽑아낸 요구 기술스택. 사전에 없는 기술은 잡히지 않는다. */
+        List<String> techStacks,
         boolean isScrapped
 ) {
 
@@ -41,6 +44,7 @@ public record JobPostingListItemResponse(
                 posting.getDeadline(),
                 posting.getStatus(),
                 posting.getApplyUrl(),
+                List.copyOf(posting.getTechStacks()),
                 scrapped
         );
     }

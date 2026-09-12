@@ -5,7 +5,9 @@ import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.enums.JobPostingStatus;
 import com.roddy.domain.enums.RecruitType;
 import com.roddy.domain.jobposting.dto.JobPostingSnapshot;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -13,6 +15,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
@@ -21,7 +24,11 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import org.hibernate.annotations.BatchSize;
+
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * 회사 채용 사이트에서 수집한 채용공고.
@@ -124,6 +131,21 @@ public class JobPosting extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime crawledAt;
 
+    /**
+     * 공고 글에서 뽑아낸 요구 기술스택.
+     *
+     * <p>목록 한 페이지를 그릴 때 공고마다 따로 조회하면 쿼리가 페이지 크기만큼 늘어나므로 묶어서 읽는다.
+     */
+    @ElementCollection
+    @CollectionTable(
+            name = "job_posting_tech_stacks",
+            joinColumns = @JoinColumn(name = "job_posting_id")
+    )
+    @Column(name = "tech_stack", nullable = false, length = 50)
+    @BatchSize(size = 100)
+    @Builder.Default
+    private Set<String> techStacks = new LinkedHashSet<>();
+
     public static JobPosting create(JobPostingSnapshot snapshot, LocalDateTime crawledAt) {
         boolean closed = snapshot.isClosedBySource();
 
@@ -147,6 +169,7 @@ public class JobPosting extends BaseEntity {
                 .contentHash(snapshot.contentHash())
                 .rawJson(snapshot.rawJson())
                 .crawledAt(crawledAt)
+                .techStacks(new LinkedHashSet<>())
                 .build();
     }
 
@@ -178,6 +201,15 @@ public class JobPosting extends BaseEntity {
         } else if (snapshot.isOpenBySource()) {
             reopen();
         }
+    }
+
+    /** 뽑아낸 기술스택이 달라졌을 때만 갈아끼운다. 매 수집마다 컬렉션을 다시 쓰지 않기 위함이다. */
+    public void updateTechStacks(Set<String> extracted) {
+        if (this.techStacks.equals(extracted)) {
+            return;
+        }
+        this.techStacks.clear();
+        this.techStacks.addAll(extracted);
     }
 
     /** 수집 시각만 갱신한다. 내용이 그대로일 때 "아직 살아있는 공고"임을 기록하는 용도. */
