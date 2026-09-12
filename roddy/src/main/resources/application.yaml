@@ -3,3 +3,9 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
 
+app:
+  crawler:
+    scheduler:
+      # 실제 채용 사이트로 요청이 나가므로 기본값은 꺼짐. 운영에서 의도적으로 켠다.
+      enabled: ${CRAWLER_SCHEDULER_ENABLED:false}
+      cron: ${CRAWLER_SCHEDULER_CRON:0 0 4 * * *}
