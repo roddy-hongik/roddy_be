@@ -167,6 +167,13 @@ class JobPostingControllerTest {
                 .andExpect(jsonPath("$.result.totalPages").value(3))
                 .andExpect(jsonPath("$.result.jobs.length()").value(2))
                 .andExpect(jsonPath("$.result.jobs[0].title").value("공고 5"));
+
+        mockMvc.perform(get("/api/jobs").param("page", "1").param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.page").value(1))
+                .andExpect(jsonPath("$.result.jobs.length()").value(2))
+                .andExpect(jsonPath("$.result.jobs[0].title").value("공고 3"))
+                .andExpect(jsonPath("$.result.jobs[1].title").value("공고 2"));
     }
 
     @Test
@@ -183,6 +190,22 @@ class JobPostingControllerTest {
                 .andExpect(jsonPath("$.result.workType").value("정규직"))
                 .andExpect(jsonPath("$.result.applyUrl").value("https://careers.kakao.com/jobs/P-1"))
                 .andExpect(jsonPath("$.result.isScrapped").value(false));
+    }
+
+    @Test
+    @DisplayName("스크랩한 사용자에게는 상세에서도 스크랩 상태를 알려준다")
+    void marksScrappedPostingInDetail() throws Exception {
+        User user = saveUser("detail-scrap@example.com", "상세스크랩유저");
+        JobPosting posting = savePosting("P-1", "백엔드 개발자", builder -> {
+        });
+
+        mockMvc.perform(post("/api/jobs/{jobPostingId}/scrap", posting.getId())
+                .with(user(new UserDetailsImpl(user))));
+
+        mockMvc.perform(get("/api/jobs/{jobPostingId}", posting.getId())
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.isScrapped").value(true));
     }
 
     @Test
@@ -255,12 +278,32 @@ class JobPostingControllerTest {
     }
 
     @Test
+    @DisplayName("없는 공고는 스크랩할 수 없다")
+    void rejectsScrapForMissingPosting() throws Exception {
+        User user = saveUser("missing-scrap@example.com", "없는공고유저");
+
+        mockMvc.perform(post("/api/jobs/{jobPostingId}/scrap", 999_999L)
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.isSuccess").value(false))
+                .andExpect(jsonPath("$.code").value("JOB_4041"));
+    }
+
+    @Test
     @DisplayName("로그인하지 않으면 스크랩할 수 없다")
     void rejectsScrapWithoutLogin() throws Exception {
         JobPosting posting = savePosting("P-1", "백엔드 개발자", builder -> {
         });
 
         mockMvc.perform(post("/api/jobs/{jobPostingId}/scrap", posting.getId()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("로그인하지 않으면 스크랩 목록도 볼 수 없다")
+    void rejectsMyScrapsWithoutLogin() throws Exception {
+        // /api/jobs/* 는 한 칸짜리 경로만 열려 있어 /api/jobs/scraps/me 는 인증이 유지된다.
+        mockMvc.perform(get("/api/jobs/scraps/me"))
                 .andExpect(status().isUnauthorized());
     }
 
