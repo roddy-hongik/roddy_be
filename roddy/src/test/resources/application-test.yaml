@@ -46,6 +46,8 @@ jwt:
     refresh-token: 1209600000
 
 app:
+  security:
+    token-secret-key: test-token-secret-key
   oauth2:
     redirect-uri: http://localhost:3000/oauth2/redirect
   github:
