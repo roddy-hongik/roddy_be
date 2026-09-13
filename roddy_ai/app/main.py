@@ -1,14 +1,15 @@
 """로디 AI 서버.
 
-백엔드만 호출하는 내부 서비스다. 깃허브와 포트폴리오를 읽어 역량 리포트를 만든다.
+백엔드만 호출하는 내부 서비스다. 깃허브와 포트폴리오를 읽어 역량 리포트를 만들고, 부족한 기술을 채우는
+학습 로드맵을 만든다.
 """
 import logging
 
 from fastapi import Depends, FastAPI
 
-from app import github, portfolio
+from app import github, portfolio, roadmap
 from app.analyzer import analyze
-from app.schemas import AnalysisRequest, AnalysisResponse
+from app.schemas import AnalysisRequest, AnalysisResponse, RoadmapRequest, RoadmapResponse
 from app.security import verify_internal_caller
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -52,4 +53,27 @@ def create_analysis(
         response.sources.portfolio_included,
         len(response.stacks),
     )
+    return response
+
+
+@app.post("/internal/roadmaps", response_model=RoadmapResponse)
+def create_roadmap(
+    request: RoadmapRequest,
+    _: None = Depends(verify_internal_caller),
+) -> RoadmapResponse:
+    """
+    부족한 기술을 채우는 세 단계 학습 로드맵을 만든다.
+
+    단계 이름과 순서는 LLM 에 맡기지 않고 붙인다. 백엔드는 기초, 심화, 실전 프로젝트 순서가 아니면 응답을 버린다.
+    """
+    logger.info(
+        "로드맵 생성을 시작합니다. 직무=%s 현재 기술=%d 부족 기술=%d",
+        request.target_job,
+        len(request.current_skills),
+        len(request.gap_skills),
+    )
+
+    response = roadmap.generate(request)
+
+    logger.info("로드맵 생성을 마쳤습니다. 단계=%d", len(response.steps))
     return response
