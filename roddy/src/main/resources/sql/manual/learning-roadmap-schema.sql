@@ -36,7 +36,8 @@ CREATE TABLE learning_roadmap_gap_skills (
 CREATE TABLE learning_roadmap_steps (
     roadmap_step_id BIGINT NOT NULL AUTO_INCREMENT,
     roadmap_id BIGINT NOT NULL,
-    step_order INT NOT NULL,
+    -- 단계 행을 먼저 넣고 순서는 뒤이어 UPDATE 로 채운다(mappedBy + @OrderColumn). NOT NULL 이면 INSERT 가 실패한다.
+    step_order INT NULL,
     stage VARCHAR(30) NOT NULL,
     goal TEXT NOT NULL,
     PRIMARY KEY (roadmap_step_id),

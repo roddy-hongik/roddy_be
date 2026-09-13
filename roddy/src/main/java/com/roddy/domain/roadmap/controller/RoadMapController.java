@@ -4,21 +4,20 @@ import com.roddy.domain.roadmap.dto.GeneratedRoadMapResponse;
 import com.roddy.domain.roadmap.dto.RoadMapSummaryResponse;
 import com.roddy.domain.roadmap.dto.SaveRoadMapRequest;
 import com.roddy.domain.roadmap.dto.SaveRoadMapResponse;
-import com.roddy.domain.roadmap.dto.SavedRoadMapResponse;
+import com.roddy.domain.roadmap.dto.SavedRoadMapListResponse;
 import com.roddy.domain.roadmap.service.RoadMapService;
 import com.roddy.global.apiPayload.ApiResponse;
 import com.roddy.global.security.UserDetailsImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -42,10 +41,12 @@ public class RoadMapController {
     }
 
     @GetMapping("/saved")
-    @Operation(summary = "저장한 로드맵 목록")
-    public ApiResponse<List<SavedRoadMapResponse>> getSaved(
-            @AuthenticationPrincipal UserDetailsImpl userDetails) {
-        return ApiResponse.onSuccess("저장한 로드맵을 조회했습니다.", roadMapService.getSaved(userDetails.getUser().getId()));
+    @Operation(summary = "저장한 로드맵 목록", description = "최신순. page 는 0부터 시작한다.")
+    public ApiResponse<SavedRoadMapListResponse> getSaved(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            Pageable pageable) {
+        return ApiResponse.onSuccess("저장한 로드맵을 조회했습니다.",
+                roadMapService.getSaved(userDetails.getUser().getId(), pageable));
     }
 
     @PostMapping("/saved")

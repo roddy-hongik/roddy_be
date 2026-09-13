@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,6 +38,7 @@ public class RoadMapStep {
     @CollectionTable(name = "learning_roadmap_step_topics", joinColumns = @JoinColumn(name = "roadmap_step_id"))
     @Column(name = "topic", nullable = false, length = 500)
     @OrderColumn(name = "topic_order")
+    @BatchSize(size = 100)
     @Builder.Default
     private List<String> topics = new ArrayList<>();
 
@@ -44,6 +46,7 @@ public class RoadMapStep {
     @CollectionTable(name = "learning_roadmap_step_outputs", joinColumns = @JoinColumn(name = "roadmap_step_id"))
     @Column(name = "output_text", nullable = false, length = 500)
     @OrderColumn(name = "output_order")
+    @BatchSize(size = 100)
     @Builder.Default
     private List<String> outputs = new ArrayList<>();
 
