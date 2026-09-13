@@ -1,13 +1,15 @@
 package com.roddy.global.client.analysis;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.annotation.JsonNaming;
 
 import java.util.List;
 
 /**
  * AI 서버가 만들어 준 역량 리포트.
+ *
+ * <p>AI 서버는 snake_case 로 답한다. RestClient 는 Jackson 3 으로 읽으므로 이름 규칙도 Jackson 3 의 어노테이션으로 단다.
  *
  * @param categories 평가 축별 점수. 축을 보내지 않았거나 자료가 없어 분석하지 않았으면 비어 있다
  */
