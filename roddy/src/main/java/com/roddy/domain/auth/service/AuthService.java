@@ -86,6 +86,7 @@ public class AuthService {
                 .refreshToken(refreshTokenValue)
                 .isOnboard(user.isOnboarded())
                 .githubConnected(user.isGithubConnected())
+                .role(user.getRole())
                 .build();
     }
 

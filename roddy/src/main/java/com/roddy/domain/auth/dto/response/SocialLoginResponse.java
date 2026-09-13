@@ -1,12 +1,14 @@
 package com.roddy.domain.auth.dto.response;
 
 import com.roddy.domain.auth.entity.User;
+import com.roddy.domain.enums.Role;
 
 public record SocialLoginResponse(
         String accessToken,
         String refreshToken,
         boolean isOnboard,
         boolean githubConnected,
+        Role role,
         SocialLoginUserResponse user
 ) {
 
@@ -16,6 +18,7 @@ public record SocialLoginResponse(
                 loginResponse.refreshToken(),
                 loginResponse.isOnboard(),
                 loginResponse.githubConnected(),
+                loginResponse.role(),
                 new SocialLoginUserResponse(
                         String.valueOf(user.getId()),
                         user.getEmail(),
