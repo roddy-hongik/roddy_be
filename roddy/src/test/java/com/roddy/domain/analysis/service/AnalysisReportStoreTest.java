@@ -72,34 +72,36 @@ class AnalysisReportStoreTest {
     }
 
     @Test
-    @DisplayName("분석을 시작하면 진행 중으로 남긴다")
-    void marksPending() {
+    @DisplayName("분석을 시작하면 진행 중인 리포트를 새로 만든다")
+    void createsPendingReport() {
         User user = saveUser("pending@example.com");
 
-        analysisReportStore.markPending(user.getId());
+        Long reportId = analysisReportStore.createPending(user.getId());
 
-        AnalysisReport report = analysisReportRepository.findByUserId(user.getId()).orElseThrow();
+        AnalysisReport report = analysisReportRepository.findById(reportId).orElseThrow();
         assertThat(report.getStatus()).isEqualTo(AnalysisStatus.PENDING);
         assertThat(report.getTitle()).isNull();
+        assertThat(analysisReportStore.isAnalyzing(user.getId())).isTrue();
     }
 
     @Test
     @DisplayName("분석 결과를 리포트와 기술스택으로 저장한다")
     void savesReportAndStacks() {
         User user = saveUser("complete@example.com");
-        analysisReportStore.markPending(user.getId());
+        Long reportId = analysisReportStore.createPending(user.getId());
 
-        analysisReportStore.complete(user.getId(), response(
+        analysisReportStore.complete(reportId, response(
                 new AnalyzedStack("Java", 80, "INTERMEDIATE", "저장소 대부분이 자바다"),
                 new AnalyzedStack("Spring Boot", 70, "INTERMEDIATE", "API 서버를 여러 번 만들었다")));
 
-        AnalysisReport report = analysisReportRepository.findByUserId(user.getId()).orElseThrow();
+        AnalysisReport report = analysisReportRepository.findById(reportId).orElseThrow();
         assertThat(report.getStatus()).isEqualTo(AnalysisStatus.COMPLETED);
         assertThat(report.getTitle()).isEqualTo("백엔드 주니어");
         assertThat(report.getTotalScore()).isEqualTo(72);
         assertThat(report.getAnalyzedAt()).isNotNull();
+        assertThat(analysisReportStore.isAnalyzing(user.getId())).isFalse();
 
-        assertThat(analysisReportStore.findStacks(user.getId()))
+        assertThat(analysisReportStore.findStacks(reportId))
                 .extracting(stack -> stack.getStackDetail().getStackName())
                 .containsExactlyInAnyOrder("Java", "Spring Boot");
     }
@@ -108,17 +110,17 @@ class AnalysisReportStoreTest {
     @DisplayName("숙련도 단계를 함께 저장하고, 모르는 값이면 비워 둔다")
     void savesStackLevel() {
         User user = saveUser("level@example.com");
-        analysisReportStore.markPending(user.getId());
+        Long reportId = analysisReportStore.createPending(user.getId());
 
-        analysisReportStore.complete(user.getId(), response(
+        analysisReportStore.complete(reportId, response(
                 new AnalyzedStack("Java", 80, "ADVANCED", "설명"),
                 new AnalyzedStack("Kotlin", 60, "알 수 없는 값", "설명")));
 
-        assertThat(analysisReportStore.findStacks(user.getId()))
+        assertThat(analysisReportStore.findStacks(reportId))
                 .filteredOn(stack -> stack.getStackDetail().getStackName().equals("Java"))
                 .singleElement()
                 .satisfies(stack -> assertThat(stack.getStackLevel()).isEqualTo(StackLevel.ADVANCED));
-        assertThat(analysisReportStore.findStacks(user.getId()))
+        assertThat(analysisReportStore.findStacks(reportId))
                 .filteredOn(stack -> stack.getStackDetail().getStackName().equals("Kotlin"))
                 .singleElement()
                 .satisfies(stack -> assertThat(stack.getStackLevel()).isNull());
@@ -128,11 +130,11 @@ class AnalysisReportStoreTest {
     @DisplayName("한글로 온 기술 이름을 공고와 이어지는 표준 이름으로 바꿔 저장한다")
     void canonicalizesStackName() {
         User user = saveUser("korean@example.com");
-        analysisReportStore.markPending(user.getId());
+        Long reportId = analysisReportStore.createPending(user.getId());
 
-        analysisReportStore.complete(user.getId(), response(new AnalyzedStack("자바", 80, "INTERMEDIATE", "설명")));
+        analysisReportStore.complete(reportId, response(new AnalyzedStack("자바", 80, "INTERMEDIATE", "설명")));
 
-        assertThat(analysisReportStore.findStacks(user.getId()))
+        assertThat(analysisReportStore.findStacks(reportId))
                 .singleElement()
                 .satisfies(stack -> assertThat(stack.getStackDetail().getStackName()).isEqualTo("Java"));
     }
@@ -141,31 +143,38 @@ class AnalysisReportStoreTest {
     @DisplayName("같은 기술을 두 번 내놓아도 한 번만 저장한다")
     void dedupesStacks() {
         User user = saveUser("duplicate@example.com");
-        analysisReportStore.markPending(user.getId());
+        Long reportId = analysisReportStore.createPending(user.getId());
 
         // 표준 이름으로 맞추면 둘 다 Java 가 된다.
-        analysisReportStore.complete(user.getId(), response(
+        analysisReportStore.complete(reportId, response(
                 new AnalyzedStack("Java", 80, "INTERMEDIATE", "먼저 온 설명"),
                 new AnalyzedStack("자바", 40, "BEGINNER", "나중에 온 설명")));
 
-        assertThat(analysisReportStore.findStacks(user.getId()))
+        assertThat(analysisReportStore.findStacks(reportId))
                 .singleElement()
                 .satisfies(stack -> assertThat(stack.getScore()).isEqualTo(80));
     }
 
     @Test
-    @DisplayName("다시 분석하면 기술스택을 통째로 갈아끼운다")
-    void replacesStacksOnReanalysis() {
+    @DisplayName("다시 분석하면 리포트를 새로 쌓고, 지난 리포트와 그 기술스택은 남긴다")
+    void keepsPreviousReportOnReanalysis() {
         User user = saveUser("reanalysis@example.com");
-        analysisReportStore.markPending(user.getId());
-        analysisReportStore.complete(user.getId(), response(new AnalyzedStack("Java", 80, "INTERMEDIATE", "설명")));
+        Long first = analysisReportStore.createPending(user.getId());
+        analysisReportStore.complete(first, response(new AnalyzedStack("Java", 80, "INTERMEDIATE", "설명")));
 
-        analysisReportStore.complete(user.getId(), response(new AnalyzedStack("Kotlin", 90, "ADVANCED", "설명")));
+        Long second = analysisReportStore.createPending(user.getId());
+        analysisReportStore.complete(second, response(new AnalyzedStack("Kotlin", 90, "ADVANCED", "설명")));
 
-        // 예전 분석에서 잡혔던 기술이 남아 있으면 지금 실력과 어긋난다.
-        assertThat(analysisReportStore.findStacks(user.getId()))
+        assertThat(second).isNotEqualTo(first);
+        // 지난 리포트를 다시 열었을 때 그때 무엇을 할 줄 알았는지 보여야 한다.
+        assertThat(analysisReportStore.findStacks(first))
+                .extracting(stack -> stack.getStackDetail().getStackName())
+                .containsExactly("Java");
+        assertThat(analysisReportStore.findStacks(second))
                 .extracting(stack -> stack.getStackDetail().getStackName())
                 .containsExactly("Kotlin");
+        assertThat(analysisReportStore.findLatest(user.getId()))
+                .hasValueSatisfying(report -> assertThat(report.getId()).isEqualTo(second));
     }
 
     @Test
@@ -173,11 +182,11 @@ class AnalysisReportStoreTest {
     void sharesStackCatalogBetweenUsers() {
         User first = saveUser("first@example.com");
         User second = saveUser("second@example.com");
-        analysisReportStore.markPending(first.getId());
-        analysisReportStore.markPending(second.getId());
+        Long firstReport = analysisReportStore.createPending(first.getId());
+        Long secondReport = analysisReportStore.createPending(second.getId());
 
-        analysisReportStore.complete(first.getId(), response(new AnalyzedStack("Java", 80, "INTERMEDIATE", "설명")));
-        analysisReportStore.complete(second.getId(), response(new AnalyzedStack("Java", 60, "BEGINNER", "설명")));
+        analysisReportStore.complete(firstReport, response(new AnalyzedStack("Java", 80, "INTERMEDIATE", "설명")));
+        analysisReportStore.complete(secondReport, response(new AnalyzedStack("Java", 60, "BEGINNER", "설명")));
 
         assertThat(stackDetailRepository.findAll())
                 .filteredOn(detail -> "Java".equals(detail.getStackName()))
@@ -185,16 +194,17 @@ class AnalysisReportStoreTest {
     }
 
     @Test
-    @DisplayName("분석이 실패하면 이유를 남긴다")
+    @DisplayName("분석이 실패하면 그 리포트에 이유를 남긴다")
     void recordsFailure() {
         User user = saveUser("failure@example.com");
-        analysisReportStore.markPending(user.getId());
+        Long reportId = analysisReportStore.createPending(user.getId());
 
-        analysisReportStore.fail(user.getId(), "RestClientException: 503");
+        analysisReportStore.fail(reportId, "RestClientException: 503");
 
-        AnalysisReport report = analysisReportRepository.findByUserId(user.getId()).orElseThrow();
+        AnalysisReport report = analysisReportRepository.findById(reportId).orElseThrow();
         assertThat(report.getStatus()).isEqualTo(AnalysisStatus.FAILED);
         assertThat(report.getFailureReason()).contains("503");
+        assertThat(analysisReportStore.isAnalyzing(user.getId())).isFalse();
     }
 
     private AnalysisAiResponse response(AnalyzedStack... stacks) {

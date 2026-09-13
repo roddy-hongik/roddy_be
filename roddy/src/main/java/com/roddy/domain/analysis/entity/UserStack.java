@@ -10,14 +10,23 @@ import lombok.NoArgsConstructor;
 
 import lombok.*;
 
+/**
+ * 리포트 한 건이 찾아낸 기술 하나.
+ *
+ * <p>같은 기술도 리포트마다 따로 남긴다. 지난 리포트를 다시 열었을 때 그때의 기술과 숙련도가 보여야
+ * 하기 때문이다. 사용자의 지금 기술은 가장 최근에 끝난 리포트에 딸린 행이다.
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(access = AccessLevel.PRIVATE)
-@Table(name = "user_stacks", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_user_stack", columnNames = {"user_id", "stack_detail_id"})
-})
+@Table(
+        name = "user_stacks",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_user_stack_report", columnNames = {"analysis_report_id", "stack_detail_id"}),
+        indexes = @Index(name = "idx_user_stack_user", columnList = "user_id")
+)
 public class UserStack extends BaseEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

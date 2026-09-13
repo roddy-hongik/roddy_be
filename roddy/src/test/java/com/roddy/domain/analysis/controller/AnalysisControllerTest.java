@@ -1,5 +1,7 @@
 package com.roddy.domain.analysis.controller;
 
+import com.roddy.domain.analysis.entity.AnalysisReport;
+import com.roddy.domain.analysis.enums.AnalysisStatus;
 import com.roddy.domain.analysis.repository.AnalysisReportRepository;
 import com.roddy.domain.analysis.repository.StackDetailRepository;
 import com.roddy.domain.analysis.repository.UserStackRepository;
@@ -24,9 +26,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -96,12 +102,13 @@ class AnalysisControllerTest {
 
         mockMvc.perform(post("/api/analysis/me").with(user(new UserDetailsImpl(user))))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.id").isNumber())
                 .andExpect(jsonPath("$.result.status").value("PENDING"))
                 // 분석은 수십 초가 걸리므로 내용은 아직 비어 있다.
                 .andExpect(jsonPath("$.result.title").doesNotExist())
                 .andExpect(jsonPath("$.result.stacks.length()").value(0));
 
-        verify(analysisRunner, times(1)).run(user.getId());
+        verify(analysisRunner, times(1)).run(eq(user.getId()), anyLong());
     }
 
     @Test
@@ -114,8 +121,28 @@ class AnalysisControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.status").value("PENDING"));
 
-        // 같은 사용자를 두 번 돌리면 LLM 비용만 두 배가 되고 결과는 하나만 남는다.
-        verify(analysisRunner, times(1)).run(user.getId());
+        // 같은 사용자를 두 번 돌리면 LLM 비용만 두 배가 된다.
+        verify(analysisRunner, times(1)).run(eq(user.getId()), anyLong());
+        assertThat(analysisReportRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("분석이 끝난 뒤 다시 요청하면 지난 리포트는 두고 새 리포트로 분석한다")
+    void startsNewReportAfterCompletion() throws Exception {
+        User user = saveUser("again@example.com");
+        mockMvc.perform(post("/api/analysis/me").with(user(new UserDetailsImpl(user))));
+        AnalysisReport first = analysisReportRepository.findFirstByUserIdOrderByIdDesc(user.getId()).orElseThrow();
+        first.complete("첫 분석", 60, "요약", "깃허브 분석", "포트폴리오 분석", LocalDateTime.now());
+        analysisReportRepository.save(first);
+
+        mockMvc.perform(post("/api/analysis/me").with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.status").value("PENDING"));
+
+        assertThat(analysisReportRepository.count()).isEqualTo(2);
+        assertThat(analysisReportRepository.findById(first.getId()))
+                .hasValueSatisfying(report -> assertThat(report.getStatus()).isEqualTo(AnalysisStatus.COMPLETED));
+        verify(analysisRunner, times(2)).run(eq(user.getId()), anyLong());
     }
 
     @Test
@@ -125,10 +152,11 @@ class AnalysisControllerTest {
 
         mockMvc.perform(get("/api/analysis/me").with(user(new UserDetailsImpl(user))))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.id").doesNotExist())
                 .andExpect(jsonPath("$.result.status").doesNotExist())
                 .andExpect(jsonPath("$.result.stacks.length()").value(0));
 
-        verify(analysisRunner, never()).run(user.getId());
+        verify(analysisRunner, never()).run(anyLong(), anyLong());
     }
 
     @Test

@@ -10,10 +10,12 @@ import java.util.List;
 /**
  * 내 역량 분석 리포트.
  *
+ * @param id            리포트 id. 아직 분석을 요청한 적이 없으면 비어 있다.
  * @param status        분석 중이면 PENDING. 내용 필드는 완료 전까지 비어 있다.
  * @param failureReason 실패했을 때만 채워진다.
  */
 public record AnalysisReportResponse(
+        Long id,
         AnalysisStatus status,
         String title,
         int totalScore,
@@ -39,6 +41,7 @@ public record AnalysisReportResponse(
 
     public static AnalysisReportResponse of(AnalysisReport report, List<UserStack> stacks) {
         return new AnalysisReportResponse(
+                report.getId(),
                 report.getStatus(),
                 report.getTitle(),
                 report.getTotalScore(),
@@ -53,6 +56,6 @@ public record AnalysisReportResponse(
 
     /** 아직 한 번도 분석하지 않은 사용자. */
     public static AnalysisReportResponse notAnalyzed() {
-        return new AnalysisReportResponse(null, null, 0, null, null, null, null, null, List.of());
+        return new AnalysisReportResponse(null, null, null, 0, null, null, null, null, null, List.of());
     }
 }

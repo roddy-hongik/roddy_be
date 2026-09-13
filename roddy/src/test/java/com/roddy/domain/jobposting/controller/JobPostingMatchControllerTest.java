@@ -190,6 +190,23 @@ class JobPostingMatchControllerTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    @DisplayName("다시 분석했으면 가장 최근에 끝난 리포트의 기술로 매칭한다")
+    void usesLatestCompletedReport() throws Exception {
+        User user = saveUser("latest@example.com");
+        saveUserStack(user, analysisReportRepository.save(completedReport(user)), "Java", 80);
+        saveUserStack(user, analysisReportRepository.save(completedReport(user)), "Java", 40);
+        // 분석 중인 리포트는 아직 기술이 비어 있다. 이걸 읽으면 매칭률이 사라진다.
+        analysisReportRepository.save(AnalysisReport.pending(user));
+        JobPosting posting = savePosting("P-1", Set.of("Java"));
+
+        mockMvc.perform(get("/api/jobs/{jobPostingId}/match", posting.getId())
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.matchRate").value(40))
+                .andExpect(jsonPath("$.result.userStackCount").value(1));
+    }
+
     private void clearAnalysisAndPostings() {
         userStackRepository.deleteAll();
         analysisReportRepository.deleteAll();
@@ -212,9 +229,14 @@ class JobPostingMatchControllerTest {
         return jobPostingRepository.save(posting);
     }
 
+    /** 가장 최근 리포트에 기술을 붙인다. 리포트가 아직 없으면 끝난 리포트를 하나 만든다. */
     private void saveUserStack(User user, String stackName, int score) {
-        AnalysisReport report = analysisReportRepository.findByUserId(user.getId())
+        AnalysisReport report = analysisReportRepository.findFirstByUserIdOrderByIdDesc(user.getId())
                 .orElseGet(() -> analysisReportRepository.save(completedReport(user)));
+        saveUserStack(user, report, stackName, score);
+    }
+
+    private void saveUserStack(User user, AnalysisReport report, String stackName, int score) {
         StackDetail detail = stackDetailRepository.save(
                 StackDetail.create(Stack.ARCHITECTURE, stackName, stackName + " 숙련도"));
 

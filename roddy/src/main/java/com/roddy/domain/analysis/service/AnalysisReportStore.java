@@ -3,6 +3,7 @@ package com.roddy.domain.analysis.service;
 import com.roddy.domain.analysis.entity.AnalysisReport;
 import com.roddy.domain.analysis.entity.StackDetail;
 import com.roddy.domain.analysis.entity.UserStack;
+import com.roddy.domain.analysis.enums.AnalysisStatus;
 import com.roddy.domain.analysis.repository.AnalysisReportRepository;
 import com.roddy.domain.analysis.repository.StackDetailRepository;
 import com.roddy.domain.analysis.repository.UserStackRepository;
@@ -36,67 +37,66 @@ public class AnalysisReportStore {
     private final UserRepository userRepository;
     private final TechStackExtractor techStackExtractor;
 
-    /** 이전 내용은 지우지 않는다. 다시 분석하는 동안에도 지난 리포트를 볼 수 있어야 한다. */
+    /**
+     * 리포트를 새로 만들어 진행 중으로 둔다. 지난 리포트는 건드리지 않으므로 분석하는 동안에도 볼 수 있다.
+     *
+     * @return 만든 리포트의 id. 분석이 끝나면 이 리포트를 채운다
+     */
     @Transactional
-    public void markPending(Long userId) {
-        analysisReportRepository.findByUserId(userId)
-                .ifPresentOrElse(
-                        AnalysisReport::markPending,
-                        () -> analysisReportRepository.save(AnalysisReport.pending(findUser(userId))));
+    public Long createPending(Long userId) {
+        return analysisReportRepository.save(AnalysisReport.pending(findUser(userId))).getId();
     }
 
     @Transactional
-    public void complete(Long userId, AnalysisAiResponse response) {
-        User user = findUser(userId);
-        AnalysisReport report = analysisReportRepository.findByUserId(userId)
-                .orElseGet(() -> analysisReportRepository.save(AnalysisReport.pending(user)));
+    public void complete(Long reportId, AnalysisAiResponse response) {
+        AnalysisReport report = analysisReportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalStateException("분석 리포트가 없습니다. reportId=" + reportId));
 
         report.complete(response.title(), response.totalScore(), response.summary(),
                 response.githubAnalysis(), response.portfolioAnalysis(), LocalDateTime.now());
 
-        replaceUserStacks(user, report, response.stacks());
+        saveStacks(report, response.stacks());
     }
 
     @Transactional
-    public void fail(Long userId, String reason) {
-        analysisReportRepository.findByUserId(userId).ifPresent(report -> report.fail(reason));
+    public void fail(Long reportId, String reason) {
+        analysisReportRepository.findById(reportId).ifPresent(report -> report.fail(reason));
     }
 
     @Transactional(readOnly = true)
-    public Optional<AnalysisReport> findReport(Long userId) {
-        return analysisReportRepository.findByUserId(userId);
+    public boolean isAnalyzing(Long userId) {
+        return analysisReportRepository.existsByUserIdAndStatus(userId, AnalysisStatus.PENDING);
+    }
+
+    /** 가장 최근에 요청한 분석. 진행 중이거나 실패한 것일 수 있다. */
+    @Transactional(readOnly = true)
+    public Optional<AnalysisReport> findLatest(Long userId) {
+        return analysisReportRepository.findFirstByUserIdOrderByIdDesc(userId);
     }
 
     @Transactional(readOnly = true)
-    public List<UserStack> findStacks(Long userId) {
-        return userStackRepository.findAllWithStackDetailByUserId(userId);
+    public List<UserStack> findStacks(Long reportId) {
+        return userStackRepository.findAllWithStackDetailByReportId(reportId);
     }
 
     /**
-     * 분석할 때마다 기술스택을 통째로 갈아끼운다. 예전 분석에서 잡혔던 기술이 남아 있으면 지금 실력과
-     * 어긋나기 때문이다.
+     * 기술스택은 리포트에 딸려 저장한다. 지난 리포트의 기술은 지우지 않는다. 그 리포트를 다시 열었을 때
+     * 그때 무엇을 할 줄 알았는지 보여야 하기 때문이다.
      */
-    private void replaceUserStacks(User user, AnalysisReport report,
-                                   List<AnalysisAiResponse.AnalyzedStack> stacks) {
-        userStackRepository.deleteAllByUserId(user.getId());
-        // 지우기 전에 새로 넣으면 유니크 제약에 걸린다.
-        userStackRepository.flush();
-
-        for (AnalysisAiResponse.AnalyzedStack stack : dedupeByName(stacks).values()) {
-            String name = techStackExtractor.canonicalize(stack.name());
-            if (name == null) {
-                continue;
-            }
-
+    private void saveStacks(AnalysisReport report, List<AnalysisAiResponse.AnalyzedStack> stacks) {
+        dedupeByName(stacks).forEach((name, stack) -> {
             StackDetail detail = stackDetailRepository.findByStackName(name)
                     .orElseGet(() -> stackDetailRepository.save(StackDetail.ofName(name)));
 
             userStackRepository.save(UserStack.create(
-                    user, detail, report, toStackLevel(stack.level()), stack.score(), stack.description()));
-        }
+                    report.getUser(), detail, report, toStackLevel(stack.level()), stack.score(), stack.description()));
+        });
     }
 
-    /** 같은 기술을 두 번 내놓을 수 있다. 표준 이름이 겹치면 앞의 것만 남긴다. */
+    /**
+     * 표준 이름 → 기술. 같은 기술을 두 번 내놓을 수 있어서 표준 이름이 겹치면 앞의 것만 남긴다.
+     * 사전에 없는 기술은 공고와 이어지지 않으므로 뺀다.
+     */
     private Map<String, AnalysisAiResponse.AnalyzedStack> dedupeByName(
             List<AnalysisAiResponse.AnalyzedStack> stacks) {
         Map<String, AnalysisAiResponse.AnalyzedStack> unique = new LinkedHashMap<>();

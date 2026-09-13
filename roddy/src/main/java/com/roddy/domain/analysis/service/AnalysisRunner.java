@@ -29,17 +29,21 @@ public class AnalysisRunner {
     private final AnalysisReportStore analysisReportStore;
     private final S3ObjectUrlService s3ObjectUrlService;
 
+    /**
+     * @param reportId 미리 진행 중으로 만들어 둔 리포트. 결과는 이 리포트에 채운다
+     */
     @Async("analysisExecutor")
-    public void run(Long userId) {
+    public void run(Long userId, Long reportId) {
         try {
             AnalysisAiResponse response = analysisAiClient.analyze(buildRequest(userId));
-            analysisReportStore.complete(userId, response);
+            analysisReportStore.complete(reportId, response);
 
-            log.info("역량 분석을 마쳤습니다. userId={} 기술={}건", userId, response.stacks().size());
+            log.info("역량 분석을 마쳤습니다. userId={} reportId={} 기술={}건",
+                    userId, reportId, response.stacks().size());
         } catch (Exception e) {
             // 어떤 이유로 실패했는지 사용자에게 보여 줘야 해서 상태를 남기고 끝낸다.
-            log.error("역량 분석에 실패했습니다. userId={}", userId, e);
-            analysisReportStore.fail(userId, "%s: %s".formatted(e.getClass().getSimpleName(), e.getMessage()));
+            log.error("역량 분석에 실패했습니다. userId={} reportId={}", userId, reportId, e);
+            analysisReportStore.fail(reportId, "%s: %s".formatted(e.getClass().getSimpleName(), e.getMessage()));
         }
     }
 
