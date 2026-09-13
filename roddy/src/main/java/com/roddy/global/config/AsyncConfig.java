@@ -28,4 +28,23 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    /**
+     * 채용공고 수집 전용 스레드.
+     *
+     * <p>수집은 회사를 하나씩 차례로 돌며 수 분이 걸린다. 사이트에 부담을 주지 않으려고 동시에 두 번
+     * 돌리지 않으므로 스레드는 하나면 된다. 겹치는 요청은 스레드 풀에 닿기 전에
+     * {@code JobPostingCrawlLauncher} 가 막는다.
+     */
+    @Bean
+    public Executor crawlExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(1);
+        // 수집이 끝나 표시를 내린 직후, 스레드가 풀로 돌아오기 전에 다음 요청이 올 수 있다. 그 한 건은 받아 둔다.
+        executor.setQueueCapacity(1);
+        executor.setThreadNamePrefix("crawl-");
+        executor.initialize();
+        return executor;
+    }
 }
