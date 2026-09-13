@@ -116,3 +116,20 @@ class RoadmapResponse(BaseModel):
     title: str
     # 늘 기초, 심화, 실전 프로젝트 순서의 세 단계다.
     steps: List[RoadmapStep]
+
+
+class InterviewQuestionRequest(RoadmapRequest):
+    """모의면접 질문 재료. 로드맵과 같은 역량 격차를 쓴다."""
+
+
+class InterviewQuestion(BaseModel):
+    # 백엔드가 질문을 가리키는 값. q1, q2, q3
+    id: str
+    question: str
+    intent: str
+    key_points: List[str] = Field(default_factory=list)
+
+
+class InterviewQuestionResponse(BaseModel):
+    # 늘 세 개다. 백엔드는 개수가 다르거나 id·질문이 겹치면 응답을 버린다.
+    questions: List[InterviewQuestion]

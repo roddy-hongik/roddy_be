@@ -10,11 +10,16 @@ import com.roddy.global.client.interview.InterviewAiRequest;
 import com.roddy.global.client.interview.InterviewAiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.Locale;
 
+/**
+ * 역량 격차로 모의면접 질문을 만든다.
+ *
+ * <p>여기서는 트랜잭션을 열지 않는다. 역량 격차는 {@link CompetencyGapReader} 가 자기 트랜잭션에서 읽어 오고,
+ * AI 서버가 답하는 동안에는 트랜잭션을 잡고 있지 않는다.
+ */
 @Service
 @RequiredArgsConstructor
 public class InterviewService {
@@ -24,7 +29,6 @@ public class InterviewService {
     private final CompetencyGapReader competencyGapReader;
     private final InterviewAiClient interviewAiClient;
 
-    @Transactional(readOnly = true)
     public InterviewQuestionsResponse generateQuestions(Long userId) {
         CompetencyGap context = competencyGapReader.read(userId);
         if (context.gapSkills().isEmpty()) {
