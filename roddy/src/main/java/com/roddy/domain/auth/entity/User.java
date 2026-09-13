@@ -56,7 +56,13 @@ public class User extends BaseEntity {
 
     private int age;
 
-    private String profileImageUrl;
+    /**
+     * 프로필 이미지의 S3 객체 키.
+     *
+     * <p>포트폴리오와 같이 주소가 아니라 키를 저장한다. presigned 주소는 몇 분 뒤 만료되므로 볼 때마다 키로
+     * 새 주소를 만든다.
+     */
+    private String profileImageObjectKey;
 
     @Enumerated(EnumType.STRING)
     private ExperienceLevel experienceYears;
@@ -181,13 +187,20 @@ public class User extends BaseEntity {
         this.isOnboarded = true;
     }
 
-    public void updateMyPageProfile(String name, Integer age, String profileImageUrl) {
+    public void updateMyPageProfile(String name, Integer age) {
         this.nickname = name;
         this.username = name;
         if (age != null) {
             this.age = age;
         }
-        this.profileImageUrl = profileImageUrl;
+    }
+
+    public void changeProfileImage(String objectKey) {
+        this.profileImageObjectKey = objectKey;
+    }
+
+    public void removeProfileImage() {
+        this.profileImageObjectKey = null;
     }
 
     public void linkSocialId(String socialId) {

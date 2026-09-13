@@ -1,7 +1,9 @@
 package com.roddy.domain.mypage.controller;
 
 import com.roddy.domain.mypage.dto.request.MyPageProfileUpdateRequest;
+import com.roddy.domain.mypage.dto.request.ProfileImagePresignRequest;
 import com.roddy.domain.mypage.dto.response.MyPageProfileResponse;
+import com.roddy.domain.mypage.dto.response.ProfileImagePresignResponse;
 import com.roddy.domain.mypage.service.MyPageService;
 import com.roddy.global.apiPayload.ApiResponse;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
@@ -15,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,7 +42,11 @@ public class MyPageController {
     }
 
     @PatchMapping("/profile")
-    @Operation(summary = "내 프로필 수정")
+    @Operation(
+            summary = "내 프로필 수정",
+            description = "프로필 이미지는 presign API 로 올린 뒤 받은 objectKey 를 보낸다. "
+                    + "비워 두면 지금 이미지를 그대로 두고, removeProfileImage 가 true 면 지운다."
+    )
     public ApiResponse<MyPageProfileResponse> updateProfile(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @Valid @RequestBody MyPageProfileUpdateRequest request
@@ -47,6 +54,22 @@ public class MyPageController {
         return ApiResponse.onSuccess(
                 "마이페이지 프로필을 수정했습니다.",
                 myPageService.updateProfile(requireUser(userDetails), request)
+        );
+    }
+
+    @PostMapping("/profile-image/presign")
+    @Operation(
+            summary = "프로필 이미지 업로드 presigned URL 발급",
+            description = "png, jpg 이미지를 S3 에 직접 올릴 presigned PUT URL 을 발급한다. "
+                    + "올릴 때 응답의 contentType 과 같은 Content-Type 헤더를 붙이고, 올린 뒤 objectKey 를 프로필 수정에 보낸다."
+    )
+    public ApiResponse<ProfileImagePresignResponse> createProfileImagePresignedUrl(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @Valid @RequestBody ProfileImagePresignRequest request
+    ) {
+        return ApiResponse.onSuccess(
+                "프로필 이미지 업로드 URL이 발급되었습니다.",
+                myPageService.createProfileImagePresignedUrl(requireUser(userDetails), request)
         );
     }
 
