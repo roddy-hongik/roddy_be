@@ -95,6 +95,12 @@ public class AnalysisReportStore {
         return analysisReportRepository.findFirstByUserIdOrderByIdDesc(userId);
     }
 
+    /** 가장 최근에 끝난 리포트. 사용자의 지금 역량은 이 리포트가 말한다. */
+    @Transactional(readOnly = true)
+    public Optional<AnalysisReport> findLatestCompleted(Long userId) {
+        return analysisReportRepository.findFirstByUserIdAndStatusOrderByIdDesc(userId, AnalysisStatus.COMPLETED);
+    }
+
     /** 끝난 리포트를 최신순으로. 진행 중이거나 실패한 분석은 결과가 없어서 뺀다. */
     @Transactional(readOnly = true)
     public List<AnalysisReport> findCompleted(Long userId) {
