@@ -85,6 +85,33 @@ public class CommunityPostService {
         );
     }
 
+    /**
+     * 내가 좋아요한 글. 좋아요를 누른 최신순이다.
+     *
+     * <p>응답은 게시글 목록과 같은 모양이다. 프론트가 목록 카드를 그대로 쓸 수 있다.
+     */
+    @Transactional(readOnly = true)
+    public CommunityPostListResponse getLikedPosts(Long userId, int page, int size) {
+        Page<Long> likedPostIds = communityPostLikeRepository.findLikedPostIds(userId, PageRequest.of(page, size));
+        List<Long> ids = likedPostIds.getContent();
+
+        List<CommunityPost> posts = ids.isEmpty()
+                ? new ArrayList<>()
+                : new ArrayList<>(communityPostRepository.findAllWithAuthorAndTechStacksByIds(ids));
+        // in 절은 순서를 지켜 주지 않는다. 좋아요를 누른 순서대로 다시 놓는다.
+        posts.sort((left, right) -> Integer.compare(ids.indexOf(left.getId()), ids.indexOf(right.getId())));
+
+        return new CommunityPostListResponse(
+                posts.stream()
+                        .map(this::toListItemResponse)
+                        .toList(),
+                likedPostIds.getNumber(),
+                likedPostIds.getSize(),
+                likedPostIds.getTotalElements(),
+                likedPostIds.getTotalPages()
+        );
+    }
+
     @Transactional
     public CommunityPostDetailResponse getPost(Long postId, Long currentUserId) {
         CommunityPost post = getPostOrThrow(postId);

@@ -55,6 +55,22 @@ public class CommunityPostController {
         );
     }
 
+    @GetMapping("/likes/me")
+    @Operation(
+            summary = "내가 좋아요한 게시글 목록",
+            description = "좋아요를 누른 최신순. 응답은 게시글 목록과 같은 모양이다."
+    )
+    public ApiResponse<CommunityPostListResponse> getLikedPosts(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+    ) {
+        return ApiResponse.onSuccess(
+                "좋아요한 게시글 목록을 조회했습니다.",
+                communityPostService.getLikedPosts(requireUser(userDetails), page, size)
+        );
+    }
+
     @GetMapping("/{postId}")
     @Operation(summary = "커뮤니티 게시글 상세 조회")
     public ApiResponse<CommunityPostDetailResponse> getPost(
