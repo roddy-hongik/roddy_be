@@ -11,6 +11,7 @@ import java.util.List;
  *
  * @param errorCount   마지막 수집이 실패한 회사 수. 목록이 길어 먼저 볼 곳을 찾기 위한 값
  * @param warningCount 점검에 걸렸거나 아직 한 번도 돌지 않은 회사 수
+ * @param running      지금 수집이 돌고 있는지. 켜져 있으면 끝날 때까지 다시 조회하면 된다
  */
 public record CrawlingDashboardResponse(
         int totalCollectedToday,
@@ -19,6 +20,7 @@ public record CrawlingDashboardResponse(
         LocalDateTime lastCrawledAt,
         int errorCount,
         int warningCount,
-        List<CrawlingCompanyResponse> companies
+        List<CrawlingCompanyResponse> companies,
+        boolean running
 ) {
 }
