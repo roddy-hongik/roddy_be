@@ -1,6 +1,7 @@
 package com.roddy.domain.jobposting.repository;
 
 import com.roddy.domain.enums.JobPostingStatus;
+import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.enums.RecruitType;
 import com.roddy.domain.jobposting.entity.JobPosting;
 import org.springframework.data.domain.Page;
@@ -76,4 +77,15 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     /** 공고 id → 요구 기술 쌍. 매칭률을 계산할 때 공고 본문까지 읽지 않기 위해 따로 둔다. */
     @Query("select jp.id, stack from JobPosting jp join jp.techStacks stack where jp.id in :ids")
     List<Object[]> findTechStacksByIds(@Param("ids") Collection<Long> ids);
+
+    /** 같은 희망 직무의 모집 중 공고에서 자주 요구하는 기술. 로드맵의 부족 기술 후보로 쓴다. */
+    @Query("""
+            select stack, count(jp)
+            from JobPosting jp join jp.techStacks stack
+            where jp.status = :status and jp.desiredJob = :desiredJob
+            group by stack
+            order by count(jp) desc, stack asc
+            """)
+    List<Object[]> countRequiredStacks(@Param("status") JobPostingStatus status,
+                                       @Param("desiredJob") DesiredJob desiredJob);
 }

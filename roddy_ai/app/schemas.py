@@ -88,3 +88,31 @@ class Repository(BaseModel):
     topics: List[str] = Field(default_factory=list)
     stars: int = 0
     updated_at: Optional[str] = None
+
+
+# 로드맵 단계. 이름과 순서가 백엔드와의 약속이다. 백엔드는 이 순서가 아니면 응답을 버린다.
+RoadmapStage = Literal["기초", "심화", "실전 프로젝트"]
+
+
+class RoadmapRequest(BaseModel):
+    """로드맵 재료. 백엔드가 최신 분석 리포트와 모집 중인 공고에서 뽑아 넘긴다."""
+
+    current_skills: List[str] = Field(default_factory=list)
+    # 채용공고가 자주 요구하는 순이다. 비어 있으면 채울 것이 없으므로 로드맵을 지어내지 않는다.
+    gap_skills: List[str] = Field(min_length=1)
+    # 직무의 한글 이름. 예: 백엔드 개발자
+    target_job: str
+    target_company: Optional[str] = None
+
+
+class RoadmapStep(BaseModel):
+    stage: RoadmapStage
+    goal: str
+    topics: List[str] = Field(default_factory=list)
+    outputs: List[str] = Field(default_factory=list)
+
+
+class RoadmapResponse(BaseModel):
+    title: str
+    # 늘 기초, 심화, 실전 프로젝트 순서의 세 단계다.
+    steps: List[RoadmapStep]

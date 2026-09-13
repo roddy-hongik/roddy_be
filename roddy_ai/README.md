@@ -1,6 +1,6 @@
 # roddy-ai
 
-사용자의 깃허브와 포트폴리오를 읽어 **역량 분석 리포트**를 만드는 내부 서비스.
+사용자의 깃허브와 포트폴리오를 읽어 **역량 분석 리포트**를 만들고, 부족한 기술을 채우는 **학습 로드맵**을 만드는 내부 서비스.
 
 백엔드만 호출한다. 외부로 포트를 열지 않고, 같은 도커 네트워크 안에서 `http://ai:8000` 으로 불린다.
 
@@ -13,6 +13,7 @@ roddy_ai/
 │   ├── github.py      공개 저장소 수집
 │   ├── portfolio.py   포트폴리오 글 추출
 │   ├── analyzer.py    OpenAI 호출과 리포트 조립
+│   ├── roadmap.py     OpenAI 호출과 학습 로드맵 조립
 │   └── config.py      환경변수
 ├── Dockerfile
 └── requirements.txt
@@ -80,6 +81,33 @@ roddy_ai/
 그러면 응답에도 축별 점수(`categories`)와 기술별 축(`stacks[].category`)이 비어 있다.
 
 `stacks[].found_in` 은 그 기술의 근거를 찾은 곳이다: `GITHUB` / `PORTFOLIO`.
+
+### `POST /internal/roadmaps`
+
+헤더에 `X-Internal-Secret` 이 있어야 한다. 값이 다르면 401. `gap_skills` 가 비어 있으면 422.
+
+```json
+{
+  "current_skills": ["Java", "Spring Boot"],
+  "gap_skills": ["Redis", "Kafka"],
+  "target_job": "백엔드 개발자",
+  "target_company": "토스"
+}
+```
+
+```json
+{
+  "title": "백엔드 성장 로드맵",
+  "steps": [
+    { "stage": "기초", "goal": "...", "topics": ["..."], "outputs": ["..."] },
+    { "stage": "심화", "goal": "...", "topics": ["..."], "outputs": ["..."] },
+    { "stage": "실전 프로젝트", "goal": "...", "topics": ["..."], "outputs": ["..."] }
+  ]
+}
+```
+
+`steps` 는 늘 `기초` / `심화` / `실전 프로젝트` 순서의 세 단계다. 백엔드는 이 순서가 아니면 응답을 버린다.
+그래서 LLM 에는 단계를 배열이 아니라 이름 붙은 속성으로 받고, 단계 이름과 순서는 서버가 붙인다.
 
 ### `GET /health`
 
