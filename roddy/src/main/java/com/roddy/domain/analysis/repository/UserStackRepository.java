@@ -13,10 +13,7 @@ public interface UserStackRepository extends JpaRepository<UserStack, Long> {
     @Query("""
             select us from UserStack us
             join fetch us.stackDetail
-            where us.user.id = :userId
+            where us.analysisReport.id = :reportId
             """)
-    List<UserStack> findAllWithStackDetailByUserId(@Param("userId") Long userId);
-
-    /** 다시 분석할 때 기술스택을 통째로 갈아끼우기 위해 쓴다. */
-    void deleteAllByUserId(Long userId);
+    List<UserStack> findAllWithStackDetailByReportId(@Param("reportId") Long reportId);
 }

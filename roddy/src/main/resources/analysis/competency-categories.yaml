@@ -1,0 +1,49 @@
+# 역량 분석 리포트의 평가 축. 직무마다 따로 둔다.
+#
+# 축은 백엔드가 정해 AI 서버에 넘긴다. LLM 이 매번 축을 새로 지으면 리포트끼리 점수를 견줄 수 없다.
+# 한번 쓴 code 는 바꾸지 않는다. 리포트에 code 로 남아서, 바꾸면 지난 리포트와 이어지지 않는다.
+#
+# code        : 리포트에 저장하는 값. 대문자, 숫자, 밑줄
+# name        : 화면에 보여줄 이름
+# description : 이 축에서 무엇을 보는지. AI 에게도 그대로 넘겨 채점 기준으로 쓴다
+#
+# 여기 없는 직무는 축 없이 분석한다. 기획이 축을 정하면 추가한다.
+jobs:
+  # 로드맵 분류(enums/Stack)와 같은 code 를 같은 순서로 쓴다.
+  BACKEND:
+    - code: DATA_MODELING
+      name: 효율적인 데이터 설계 및 최적화
+      description: 기업은 단순히 DB를 사용하는 것을 넘어, 성능을 고려한 설계를 할 수 있는지를 봅니다.
+    - code: ARCHITECTURE
+      name: 비즈니스 로직의 아키텍처 설계
+      description: 코드의 유지보수성과 확장성을 평가합니다.
+    - code: SCALABILITY
+      name: 대용량 트래픽 및 동시성 제어
+      description: 실제 사용자가 몰렸을 때 서버가 터지지 않게 관리하는 능력입니다.
+    - code: STABILITY
+      name: 서비스 안정성 및 테스트 자동화
+      description: 백엔드 개발자의 신뢰도를 결정하는 척도입니다.
+    - code: DEVOPS_CICD
+      name: 인프라 구축 및 자동화
+      description: 코드를 작성하는 것만큼 배포하고 운영하는 환경 이해도도 중요합니다.
+    - code: MONITORING
+      name: 모니터링 및 성능 분석
+      description: 문제가 발생했을 때 원인을 파악하고 개선하는 능력입니다.
+
+  # 이름은 프론트 목업을 따랐고, 설명은 목업에 없어 임시로 적었다. 기획 확인이 필요하다.
+  FULLSTACK:
+    - code: BACKEND
+      name: 백엔드
+      description: 서버 API 와 비즈니스 로직을 구현하고 운영하는 역량입니다.
+    - code: FRONTEND
+      name: 프론트엔드
+      description: 컴포넌트 설계와 상태 관리처럼 사용자 화면을 만드는 역량입니다.
+    - code: DATABASE
+      name: 데이터베이스
+      description: 스키마를 설계하고 데이터를 효율적으로 다루는 역량입니다.
+    - code: CS_FUNDAMENTALS
+      name: CS 기본기
+      description: 자료구조, 알고리즘, 네트워크 같은 기초 지식을 문제 해결에 쓰는 역량입니다.
+    - code: COLLABORATION
+      name: 협업/프로젝트 경험
+      description: 다른 직군과 함께 기능을 만들고 출시까지 끌고 간 경험입니다.

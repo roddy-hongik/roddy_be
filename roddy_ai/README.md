@@ -31,7 +31,14 @@ roddy_ai/
   "portfolio_url": "https://s3.../resume.pdf?X-Amz-Signature=...",
   "portfolio_file_name": "resume.pdf",
   "desired_job": "BACKEND",
-  "experience_years": "JUNIOR"
+  "experience_years": "JUNIOR",
+  "categories": [
+    {
+      "code": "DATA_MODELING",
+      "name": "효율적인 데이터 설계 및 최적화",
+      "description": "기업은 단순히 DB를 사용하는 것을 넘어, 성능을 고려한 설계를 할 수 있는지를 봅니다."
+    }
+  ]
 }
 ```
 
@@ -43,7 +50,17 @@ roddy_ai/
   "github_analysis": "...",
   "portfolio_analysis": "...",
   "stacks": [
-    { "name": "Java", "score": 72, "level": "INTERMEDIATE", "description": "..." }
+    {
+      "name": "Java",
+      "score": 72,
+      "level": "INTERMEDIATE",
+      "description": "...",
+      "category": "DATA_MODELING",
+      "found_in": ["GITHUB", "PORTFOLIO"]
+    }
+  ],
+  "categories": [
+    { "code": "DATA_MODELING", "score": 58, "interpretation": "..." }
   ],
   "sources": {
     "repository_count": 12,
@@ -58,6 +75,11 @@ roddy_ai/
 이어지기 때문이다.
 
 `level` 은 백엔드의 `StackLevel` 과 같은 값을 쓴다: `BEGINNER` / `INTERMEDIATE` / `ADVANCED` / `EXPERT`.
+
+`categories` 는 **백엔드가 직무별로 정한 평가 축**이다. 축을 정하지 않은 직무는 빈 목록으로 오고,
+그러면 응답에도 축별 점수(`categories`)와 기술별 축(`stacks[].category`)이 비어 있다.
+
+`stacks[].found_in` 은 그 기술의 근거를 찾은 곳이다: `GITHUB` / `PORTFOLIO`.
 
 ### `GET /health`
 
@@ -75,6 +97,12 @@ roddy_ai/
 
 **S3 자격증명을 갖지 않는다.** 포트폴리오는 백엔드가 만든 presigned URL 로만 읽는다. 어떤 파일을
 읽을지 정하는 권한은 백엔드에 둔다.
+
+**평가 축은 백엔드가 정한다.** LLM 이 축을 매번 새로 지으면 리포트끼리 점수를 견줄 수 없다. 축 code 를
+응답 스키마의 enum 으로 묶어 모르는 축을 지어내지 못하게 하고, 그래도 받은 축에 없는 값이 오면 버린다.
+
+**빠뜨린 축을 0점으로 채우지 않는다.** 0점은 "못한다"로 읽히는데, 실제로는 판단하지 않은 것이다.
+응답의 `categories` 에서 빼고 로그를 남긴다.
 
 ## 환경변수
 

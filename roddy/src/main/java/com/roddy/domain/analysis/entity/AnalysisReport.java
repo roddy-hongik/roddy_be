@@ -3,6 +3,7 @@ package com.roddy.domain.analysis.entity;
 import com.roddy.domain.BaseEntity;
 import com.roddy.domain.analysis.enums.AnalysisStatus;
 import com.roddy.domain.auth.entity.User;
+import com.roddy.domain.enums.DesiredJob;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,8 +12,9 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -23,18 +25,23 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * 사용자 한 명의 역량 분석 리포트.
+ * 역량 분석 리포트 한 건.
  *
- * <p>사용자당 하나만 두고 다시 분석하면 덮어쓴다. 분석은 깃허브를 훑고 LLM 을 부르느라 오래 걸리므로
- * 먼저 {@link AnalysisStatus#PENDING} 으로 만들어 두고, 끝나면 내용을 채운다. 그래서 내용 필드는
- * 완료되기 전까지 비어 있다.
+ * <p>분석을 요청할 때마다 새로 만든다. 지난 리포트를 덮어쓰면 무엇이 얼마나 늘었는지 볼 수 없기
+ * 때문이다. 사용자의 지금 역량은 가장 최근에 끝난 리포트가 말한다.
+ *
+ * <p>분석은 깃허브를 훑고 LLM 을 부르느라 오래 걸리므로 먼저 {@link AnalysisStatus#PENDING} 으로
+ * 만들어 두고, 끝나면 내용을 채운다. 그래서 내용 필드는 완료되기 전까지 비어 있다.
  */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(access = AccessLevel.PRIVATE)
-@Table(name = "analysis_reports")
+@Table(
+        name = "analysis_reports",
+        indexes = @Index(name = "idx_analysis_report_user", columnList = "user_id, analysis_report_id")
+)
 public class AnalysisReport extends BaseEntity {
 
     private static final int FAILURE_REASON_MAX_LENGTH = 1000;
@@ -44,9 +51,17 @@ public class AnalysisReport extends BaseEntity {
     @Column(name = "analysis_report_id")
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", unique = true, nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    /**
+     * 분석을 요청한 당시의 희망 직무. 평가 축이 직무마다 달라서, 나중에 직무를 바꿔도 이 리포트가 어떤
+     * 축으로 채점됐는지 알 수 있어야 한다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private DesiredJob desiredJob;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -70,21 +85,16 @@ public class AnalysisReport extends BaseEntity {
     @Column(length = FAILURE_REASON_MAX_LENGTH)
     private String failureReason;
 
-    /** 마지막으로 분석을 끝낸 시각. */
+    /** 분석을 끝낸 시각. */
     private LocalDateTime analyzedAt;
 
     public static AnalysisReport pending(User user) {
         return AnalysisReport.builder()
                 .user(user)
+                .desiredJob(user.getDesiredJob())
                 .status(AnalysisStatus.PENDING)
                 .totalScore(0)
                 .build();
-    }
-
-    /** 다시 분석할 때. 이전 내용은 남겨 두어 분석 중에도 지난 리포트를 볼 수 있게 한다. */
-    public void markPending() {
-        this.status = AnalysisStatus.PENDING;
-        this.failureReason = null;
     }
 
     public void complete(String title, int totalScore, String summary,
