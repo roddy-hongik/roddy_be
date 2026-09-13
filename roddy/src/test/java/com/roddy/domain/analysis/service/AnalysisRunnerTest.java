@@ -97,7 +97,7 @@ class AnalysisRunnerTest {
     }
 
     private AnalysisAiResponse emptyResponse() {
-        return new AnalysisAiResponse("제목", 0, "요약", "", "", List.of(),
+        return new AnalysisAiResponse("제목", 0, "요약", "", "", List.of(), List.of(),
                 new AnalysisAiResponse.Sources(0, false, List.of()));
     }
 }

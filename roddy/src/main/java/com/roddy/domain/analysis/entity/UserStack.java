@@ -58,15 +58,28 @@ public class UserStack extends BaseEntity {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String description;
 
+    /** 이 기술이 속한 평가 축의 code. 축을 정하지 않은 직무거나 AI 가 축을 고르지 못했으면 비어 있다. */
+    @Column(length = 50)
+    private String categoryCode;
+
+    /** 깃허브 저장소에서 근거를 찾았는지. 프론트는 깃허브에서 찾은 기술과 이력서에서 찾은 기술을 나눠 보여준다. */
+    @Column(nullable = false)
+    private boolean foundInGithub;
+
+    /** 포트폴리오에서 근거를 찾았는지. */
+    @Column(nullable = false)
+    private boolean foundInPortfolio;
+
     public static UserStack create(User user, StackDetail stackDetail,
                                    AnalysisReport analysisReport,
                                    int score, String description) {
-        return create(user, stackDetail, analysisReport, null, score, description);
+        return create(user, stackDetail, analysisReport, null, score, description, null, false, false);
     }
 
     public static UserStack create(User user, StackDetail stackDetail,
                                    AnalysisReport analysisReport, StackLevel stackLevel,
-                                   int score, String description) {
+                                   int score, String description,
+                                   String categoryCode, boolean foundInGithub, boolean foundInPortfolio) {
         return UserStack.builder()
                 .user(user)
                 .stackDetail(stackDetail)
@@ -74,6 +87,9 @@ public class UserStack extends BaseEntity {
                 .stackLevel(stackLevel)
                 .score(score)
                 .description(description)
+                .categoryCode(categoryCode)
+                .foundInGithub(foundInGithub)
+                .foundInPortfolio(foundInPortfolio)
                 .build();
     }
 

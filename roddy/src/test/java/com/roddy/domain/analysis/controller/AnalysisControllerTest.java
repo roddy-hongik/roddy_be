@@ -1,7 +1,12 @@
 package com.roddy.domain.analysis.controller;
 
+import com.roddy.domain.analysis.dto.CompetencyCategory;
 import com.roddy.domain.analysis.entity.AnalysisReport;
+import com.roddy.domain.analysis.entity.AnalysisReportCategory;
+import com.roddy.domain.analysis.entity.StackDetail;
+import com.roddy.domain.analysis.entity.UserStack;
 import com.roddy.domain.analysis.enums.AnalysisStatus;
+import com.roddy.domain.analysis.repository.AnalysisReportCategoryRepository;
 import com.roddy.domain.analysis.repository.AnalysisReportRepository;
 import com.roddy.domain.analysis.repository.StackDetailRepository;
 import com.roddy.domain.analysis.repository.UserStackRepository;
@@ -11,6 +16,7 @@ import com.roddy.domain.auth.repository.UserRepository;
 import com.roddy.domain.auth.service.SocialAuthService;
 import com.roddy.domain.enums.Role;
 import com.roddy.domain.enums.SocialType;
+import com.roddy.domain.enums.StackLevel;
 import com.roddy.global.config.s3.S3ObjectUrlService;
 import com.roddy.global.config.s3.S3Uploader;
 import com.roddy.global.security.UserDetailsImpl;
@@ -52,6 +58,9 @@ class AnalysisControllerTest {
 
     @Autowired
     private AnalysisReportRepository analysisReportRepository;
+
+    @Autowired
+    private AnalysisReportCategoryRepository analysisReportCategoryRepository;
 
     @Autowired
     private UserStackRepository userStackRepository;
@@ -106,6 +115,7 @@ class AnalysisControllerTest {
                 .andExpect(jsonPath("$.result.status").value("PENDING"))
                 // 분석은 수십 초가 걸리므로 내용은 아직 비어 있다.
                 .andExpect(jsonPath("$.result.title").doesNotExist())
+                .andExpect(jsonPath("$.result.categories.length()").value(0))
                 .andExpect(jsonPath("$.result.stacks.length()").value(0));
 
         verify(analysisRunner, times(1)).run(eq(user.getId()), anyLong());
@@ -146,6 +156,35 @@ class AnalysisControllerTest {
     }
 
     @Test
+    @DisplayName("리포트에 축별 점수와 그 축에 속한 기술, 기술의 근거를 찾은 곳을 함께 준다")
+    void returnsCategoriesAndStackSources() throws Exception {
+        User user = saveUser("categories@example.com");
+        AnalysisReport report = analysisReportRepository.save(completedReport(user));
+        analysisReportCategoryRepository.save(AnalysisReportCategory.create(
+                report, new CompetencyCategory("ARCHITECTURE", "비즈니스 로직의 아키텍처 설계", "유지보수성과 확장성"),
+                80, "계층을 나눠 설계했다"));
+        StackDetail java = stackDetailRepository.save(StackDetail.ofName("Java"));
+        StackDetail docker = stackDetailRepository.save(StackDetail.ofName("Docker"));
+        userStackRepository.save(UserStack.create(
+                user, java, report, StackLevel.INTERMEDIATE, 75, "설명", "ARCHITECTURE", true, false));
+        userStackRepository.save(UserStack.create(
+                user, docker, report, StackLevel.BEGINNER, 40, "설명", null, false, true));
+
+        mockMvc.perform(get("/api/analysis/me").with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.categories.length()").value(1))
+                .andExpect(jsonPath("$.result.categories[0].code").value("ARCHITECTURE"))
+                .andExpect(jsonPath("$.result.categories[0].name").value("비즈니스 로직의 아키텍처 설계"))
+                .andExpect(jsonPath("$.result.categories[0].score").value(80))
+                .andExpect(jsonPath("$.result.categories[0].interpretation").value("계층을 나눠 설계했다"))
+                // 축에 속하지 않은 Docker 는 빠진다.
+                .andExpect(jsonPath("$.result.categories[0].stacks.length()").value(1))
+                .andExpect(jsonPath("$.result.categories[0].stacks[0]").value("Java"))
+                .andExpect(jsonPath("$.result.stacks[?(@.name == 'Java')].foundInGithub").value(true))
+                .andExpect(jsonPath("$.result.stacks[?(@.name == 'Docker')].foundInPortfolio").value(true));
+    }
+
+    @Test
     @DisplayName("아직 분석하지 않은 사용자는 빈 리포트를 받는다")
     void returnsEmptyReportBeforeAnalysis() throws Exception {
         User user = saveUser("empty@example.com");
@@ -154,6 +193,7 @@ class AnalysisControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.id").doesNotExist())
                 .andExpect(jsonPath("$.result.status").doesNotExist())
+                .andExpect(jsonPath("$.result.categories.length()").value(0))
                 .andExpect(jsonPath("$.result.stacks.length()").value(0));
 
         verify(analysisRunner, never()).run(anyLong(), anyLong());
@@ -166,7 +206,14 @@ class AnalysisControllerTest {
         mockMvc.perform(get("/api/analysis/me")).andExpect(status().isUnauthorized());
     }
 
+    private AnalysisReport completedReport(User user) {
+        AnalysisReport report = AnalysisReport.pending(user);
+        report.complete("백엔드 주니어", 70, "요약", "깃허브 분석", "포트폴리오 분석", LocalDateTime.now());
+        return report;
+    }
+
     private void clear() {
+        analysisReportCategoryRepository.deleteAll();
         userStackRepository.deleteAll();
         analysisReportRepository.deleteAll();
         stackDetailRepository.deleteAll();

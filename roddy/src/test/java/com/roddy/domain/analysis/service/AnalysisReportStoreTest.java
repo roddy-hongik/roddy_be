@@ -1,7 +1,9 @@
 package com.roddy.domain.analysis.service;
 
 import com.roddy.domain.analysis.entity.AnalysisReport;
+import com.roddy.domain.analysis.entity.AnalysisReportCategory;
 import com.roddy.domain.analysis.enums.AnalysisStatus;
+import com.roddy.domain.analysis.repository.AnalysisReportCategoryRepository;
 import com.roddy.domain.analysis.repository.AnalysisReportRepository;
 import com.roddy.domain.analysis.repository.StackDetailRepository;
 import com.roddy.domain.analysis.repository.UserStackRepository;
@@ -15,6 +17,7 @@ import com.roddy.domain.enums.SocialType;
 import com.roddy.domain.enums.StackLevel;
 import com.roddy.global.client.analysis.AnalysisAiResponse;
 import com.roddy.global.client.analysis.AnalysisAiResponse.AnalyzedStack;
+import com.roddy.global.client.analysis.AnalysisAiResponse.CategoryScore;
 import com.roddy.global.config.s3.S3ObjectUrlService;
 import com.roddy.global.config.s3.S3Uploader;
 import org.junit.jupiter.api.AfterEach;
@@ -31,6 +34,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -41,6 +45,9 @@ class AnalysisReportStoreTest {
 
     @Autowired
     private AnalysisReportRepository analysisReportRepository;
+
+    @Autowired
+    private AnalysisReportCategoryRepository analysisReportCategoryRepository;
 
     @Autowired
     private UserStackRepository userStackRepository;
@@ -107,8 +114,8 @@ class AnalysisReportStoreTest {
         Long reportId = analysisReportStore.createPending(user.getId());
 
         analysisReportStore.complete(reportId, response(
-                new AnalyzedStack("Java", 80, "INTERMEDIATE", "저장소 대부분이 자바다"),
-                new AnalyzedStack("Spring Boot", 70, "INTERMEDIATE", "API 서버를 여러 번 만들었다")));
+                stack("Java", 80, "INTERMEDIATE", "저장소 대부분이 자바다"),
+                stack("Spring Boot", 70, "INTERMEDIATE", "API 서버를 여러 번 만들었다")));
 
         AnalysisReport report = analysisReportRepository.findById(reportId).orElseThrow();
         assertThat(report.getStatus()).isEqualTo(AnalysisStatus.COMPLETED);
@@ -129,8 +136,8 @@ class AnalysisReportStoreTest {
         Long reportId = analysisReportStore.createPending(user.getId());
 
         analysisReportStore.complete(reportId, response(
-                new AnalyzedStack("Java", 80, "ADVANCED", "설명"),
-                new AnalyzedStack("Kotlin", 60, "알 수 없는 값", "설명")));
+                stack("Java", 80, "ADVANCED", "설명"),
+                stack("Kotlin", 60, "알 수 없는 값", "설명")));
 
         assertThat(analysisReportStore.findStacks(reportId))
                 .filteredOn(stack -> stack.getStackDetail().getStackName().equals("Java"))
@@ -148,7 +155,7 @@ class AnalysisReportStoreTest {
         User user = saveUser("korean@example.com");
         Long reportId = analysisReportStore.createPending(user.getId());
 
-        analysisReportStore.complete(reportId, response(new AnalyzedStack("자바", 80, "INTERMEDIATE", "설명")));
+        analysisReportStore.complete(reportId, response(stack("자바", 80, "INTERMEDIATE", "설명")));
 
         assertThat(analysisReportStore.findStacks(reportId))
                 .singleElement()
@@ -163,8 +170,8 @@ class AnalysisReportStoreTest {
 
         // 표준 이름으로 맞추면 둘 다 Java 가 된다.
         analysisReportStore.complete(reportId, response(
-                new AnalyzedStack("Java", 80, "INTERMEDIATE", "먼저 온 설명"),
-                new AnalyzedStack("자바", 40, "BEGINNER", "나중에 온 설명")));
+                stack("Java", 80, "INTERMEDIATE", "먼저 온 설명"),
+                stack("자바", 40, "BEGINNER", "나중에 온 설명")));
 
         assertThat(analysisReportStore.findStacks(reportId))
                 .singleElement()
@@ -176,10 +183,10 @@ class AnalysisReportStoreTest {
     void keepsPreviousReportOnReanalysis() {
         User user = saveUser("reanalysis@example.com");
         Long first = analysisReportStore.createPending(user.getId());
-        analysisReportStore.complete(first, response(new AnalyzedStack("Java", 80, "INTERMEDIATE", "설명")));
+        analysisReportStore.complete(first, response(stack("Java", 80, "INTERMEDIATE", "설명")));
 
         Long second = analysisReportStore.createPending(user.getId());
-        analysisReportStore.complete(second, response(new AnalyzedStack("Kotlin", 90, "ADVANCED", "설명")));
+        analysisReportStore.complete(second, response(stack("Kotlin", 90, "ADVANCED", "설명")));
 
         assertThat(second).isNotEqualTo(first);
         // 지난 리포트를 다시 열었을 때 그때 무엇을 할 줄 알았는지 보여야 한다.
@@ -201,12 +208,96 @@ class AnalysisReportStoreTest {
         Long firstReport = analysisReportStore.createPending(first.getId());
         Long secondReport = analysisReportStore.createPending(second.getId());
 
-        analysisReportStore.complete(firstReport, response(new AnalyzedStack("Java", 80, "INTERMEDIATE", "설명")));
-        analysisReportStore.complete(secondReport, response(new AnalyzedStack("Java", 60, "BEGINNER", "설명")));
+        analysisReportStore.complete(firstReport, response(stack("Java", 80, "INTERMEDIATE", "설명")));
+        analysisReportStore.complete(secondReport, response(stack("Java", 60, "BEGINNER", "설명")));
 
         assertThat(stackDetailRepository.findAll())
                 .filteredOn(detail -> "Java".equals(detail.getStackName()))
                 .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("직무의 축 순서대로 축별 점수를 저장하고, 축의 이름도 함께 남긴다")
+    void savesCategoryScores() {
+        User user = saveUser("category@example.com");
+        changeDesiredJob(user, DesiredJob.BACKEND);
+        Long reportId = analysisReportStore.createPending(user.getId());
+
+        // AI 가 축 순서를 섞어 보내도 축 정의의 순서로 저장한다. 레이더 차트의 축이 리포트마다 흔들리면 안 된다.
+        analysisReportStore.complete(reportId, response(List.of(
+                new CategoryScore("MONITORING", 40, "로그 수집 경험이 없다"),
+                new CategoryScore("DATA_MODELING", 70, "인덱스를 설계했다"))));
+
+        List<AnalysisReportCategory> categories = analysisReportStore.findCategories(reportId);
+        assertThat(categories)
+                .extracting(AnalysisReportCategory::getCode, AnalysisReportCategory::getScore)
+                .containsExactly(tuple("DATA_MODELING", 70), tuple("MONITORING", 40));
+        assertThat(categories.get(0).getName()).isEqualTo("효율적인 데이터 설계 및 최적화");
+        assertThat(categories.get(0).getInterpretation()).isEqualTo("인덱스를 설계했다");
+    }
+
+    @Test
+    @DisplayName("요청하지 않은 축은 버리고, 빠진 축을 0점으로 채우지 않는다")
+    void ignoresUnknownAndMissingCategories() {
+        User user = saveUser("unknown-category@example.com");
+        changeDesiredJob(user, DesiredJob.BACKEND);
+        Long reportId = analysisReportStore.createPending(user.getId());
+
+        analysisReportStore.complete(reportId, response(List.of(
+                new CategoryScore("FRONTEND", 90, "풀스택의 축이다"),
+                new CategoryScore("ARCHITECTURE", 60, "계층을 나눴다"))));
+
+        // 0점은 "못한다"로 읽힌다. 판단하지 않은 축은 아예 없어야 한다.
+        assertThat(analysisReportStore.findCategories(reportId))
+                .extracting(AnalysisReportCategory::getCode)
+                .containsExactly("ARCHITECTURE");
+    }
+
+    @Test
+    @DisplayName("축을 정하지 않은 직무면 축 점수를 받아도 저장하지 않는다")
+    void ignoresCategoriesForJobWithoutCategories() {
+        User user = saveUser("frontend@example.com");
+        changeDesiredJob(user, DesiredJob.FRONTEND);
+        Long reportId = analysisReportStore.createPending(user.getId());
+
+        analysisReportStore.complete(reportId, response(
+                List.of(new CategoryScore("ARCHITECTURE", 60, "설명")),
+                new AnalyzedStack("Java", 80, "INTERMEDIATE", "설명", "ARCHITECTURE", List.of("GITHUB"))));
+
+        assertThat(analysisReportStore.findCategories(reportId)).isEmpty();
+        assertThat(analysisReportStore.findStacks(reportId))
+                .singleElement()
+                .satisfies(stack -> assertThat(stack.getCategoryCode()).isNull());
+    }
+
+    @Test
+    @DisplayName("기술마다 속한 축과 근거를 찾은 곳을 저장한다")
+    void savesStackCategoryAndSources() {
+        User user = saveUser("stack-category@example.com");
+        changeDesiredJob(user, DesiredJob.BACKEND);
+        Long reportId = analysisReportStore.createPending(user.getId());
+
+        analysisReportStore.complete(reportId, response(List.of(),
+                new AnalyzedStack("Java", 80, "INTERMEDIATE", "설명", "ARCHITECTURE", List.of("GITHUB", "PORTFOLIO")),
+                new AnalyzedStack("Spring Boot", 50, "BEGINNER", "설명", "FRONTEND", List.of("PORTFOLIO"))));
+
+        assertThat(analysisReportStore.findStacks(reportId))
+                .filteredOn(stack -> stack.getStackDetail().getStackName().equals("Java"))
+                .singleElement()
+                .satisfies(stack -> {
+                    assertThat(stack.getCategoryCode()).isEqualTo("ARCHITECTURE");
+                    assertThat(stack.isFoundInGithub()).isTrue();
+                    assertThat(stack.isFoundInPortfolio()).isTrue();
+                });
+        // 이 직무의 축이 아닌 code 에는 기술을 매달지 않는다.
+        assertThat(analysisReportStore.findStacks(reportId))
+                .filteredOn(stack -> stack.getStackDetail().getStackName().equals("Spring Boot"))
+                .singleElement()
+                .satisfies(stack -> {
+                    assertThat(stack.getCategoryCode()).isNull();
+                    assertThat(stack.isFoundInGithub()).isFalse();
+                    assertThat(stack.isFoundInPortfolio()).isTrue();
+                });
     }
 
     @Test
@@ -224,10 +315,20 @@ class AnalysisReportStoreTest {
     }
 
     private AnalysisAiResponse response(AnalyzedStack... stacks) {
+        return response(List.of(), stacks);
+    }
+
+    private AnalysisAiResponse response(List<CategoryScore> categories, AnalyzedStack... stacks) {
         return new AnalysisAiResponse(
                 "백엔드 주니어", 72, "요약", "깃허브 분석", "포트폴리오 분석",
                 List.of(stacks),
+                categories,
                 new AnalysisAiResponse.Sources(12, true, List.of()));
+    }
+
+    /** 축과 출처를 따지지 않는 테스트에서 쓴다. */
+    private AnalyzedStack stack(String name, int score, String level, String description) {
+        return new AnalyzedStack(name, score, level, description, null, List.of());
     }
 
     private void changeDesiredJob(User user, DesiredJob desiredJob) {
@@ -237,6 +338,7 @@ class AnalysisReportStoreTest {
     }
 
     private void clear() {
+        analysisReportCategoryRepository.deleteAll();
         userStackRepository.deleteAll();
         analysisReportRepository.deleteAll();
         stackDetailRepository.deleteAll();

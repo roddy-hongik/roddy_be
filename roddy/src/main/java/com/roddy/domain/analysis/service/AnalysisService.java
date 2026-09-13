@@ -1,6 +1,7 @@
 package com.roddy.domain.analysis.service;
 
 import com.roddy.domain.analysis.dto.response.AnalysisReportResponse;
+import com.roddy.domain.analysis.entity.AnalysisReport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,7 +40,14 @@ public class AnalysisService {
     /** 가장 최근에 요청한 분석. 분석을 요청한 뒤 끝났는지 다시 조회할 때 쓴다. */
     public AnalysisReportResponse getReport(Long userId) {
         return analysisReportStore.findLatest(userId)
-                .map(report -> AnalysisReportResponse.of(report, analysisReportStore.findStacks(report.getId())))
+                .map(this::toResponse)
                 .orElseGet(AnalysisReportResponse::notAnalyzed);
+    }
+
+    private AnalysisReportResponse toResponse(AnalysisReport report) {
+        return AnalysisReportResponse.of(
+                report,
+                analysisReportStore.findCategories(report.getId()),
+                analysisReportStore.findStacks(report.getId()));
     }
 }

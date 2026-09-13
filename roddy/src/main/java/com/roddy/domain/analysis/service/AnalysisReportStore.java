@@ -1,9 +1,12 @@
 package com.roddy.domain.analysis.service;
 
+import com.roddy.domain.analysis.dto.CompetencyCategory;
 import com.roddy.domain.analysis.entity.AnalysisReport;
+import com.roddy.domain.analysis.entity.AnalysisReportCategory;
 import com.roddy.domain.analysis.entity.StackDetail;
 import com.roddy.domain.analysis.entity.UserStack;
 import com.roddy.domain.analysis.enums.AnalysisStatus;
+import com.roddy.domain.analysis.repository.AnalysisReportCategoryRepository;
 import com.roddy.domain.analysis.repository.AnalysisReportRepository;
 import com.roddy.domain.analysis.repository.StackDetailRepository;
 import com.roddy.domain.analysis.repository.UserStackRepository;
@@ -21,10 +24,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /** 분석 리포트를 저장한다. 분석 실행과 저장을 나눠 두어야 실패해도 상태를 남길 수 있다. */
 @Slf4j
@@ -33,10 +39,12 @@ import java.util.Optional;
 public class AnalysisReportStore {
 
     private final AnalysisReportRepository analysisReportRepository;
+    private final AnalysisReportCategoryRepository analysisReportCategoryRepository;
     private final UserStackRepository userStackRepository;
     private final StackDetailRepository stackDetailRepository;
     private final UserRepository userRepository;
     private final TechStackExtractor techStackExtractor;
+    private final CompetencyCategoryCatalog competencyCategoryCatalog;
 
     /**
      * 리포트를 새로 만들어 진행 중으로 둔다. 지난 리포트는 건드리지 않으므로 분석하는 동안에도 볼 수 있다.
@@ -56,7 +64,11 @@ public class AnalysisReportStore {
         report.complete(response.title(), response.totalScore(), response.summary(),
                 response.githubAnalysis(), response.portfolioAnalysis(), LocalDateTime.now());
 
-        saveStacks(report, response.stacks());
+        // 채점을 요청한 축만 받는다. 기준은 리포트에 남긴 직무의 축이다.
+        List<CompetencyCategory> categories = competencyCategoryCatalog.categoriesOf(report.getDesiredJob());
+        saveCategories(report, categories, response.categories());
+        saveStacks(report, categories.stream().map(CompetencyCategory::code).collect(Collectors.toSet()),
+                response.stacks());
     }
 
     @Transactional
@@ -84,21 +96,55 @@ public class AnalysisReportStore {
     }
 
     @Transactional(readOnly = true)
+    public List<AnalysisReportCategory> findCategories(Long reportId) {
+        return analysisReportCategoryRepository.findAllByAnalysisReportIdOrderByIdAsc(reportId);
+    }
+
+    @Transactional(readOnly = true)
     public List<UserStack> findStacks(Long reportId) {
         return userStackRepository.findAllWithStackDetailByReportId(reportId);
     }
 
     /**
+     * 축 정의의 순서대로 저장한다. 요청하지 않은 축은 버린다.
+     *
+     * <p>AI 가 빠뜨린 축은 0점으로 채우지 않는다. 0점은 "못한다"로 읽히는데 실제로는 판단하지 않은 것이다.
+     */
+    private void saveCategories(AnalysisReport report, List<CompetencyCategory> categories,
+                                List<AnalysisAiResponse.CategoryScore> scores) {
+        Map<String, AnalysisAiResponse.CategoryScore> scoreByCode = new HashMap<>();
+        scores.forEach(score -> scoreByCode.putIfAbsent(score.code(), score));
+
+        for (CompetencyCategory category : categories) {
+            AnalysisAiResponse.CategoryScore score = scoreByCode.get(category.code());
+            if (score == null) {
+                log.warn("평가 축 점수가 빠졌습니다. reportId={} code={}", report.getId(), category.code());
+                continue;
+            }
+
+            analysisReportCategoryRepository.save(AnalysisReportCategory.create(
+                    report, category, score.score(), score.interpretation()));
+        }
+    }
+
+    /**
      * 기술스택은 리포트에 딸려 저장한다. 지난 리포트의 기술은 지우지 않는다. 그 리포트를 다시 열었을 때
      * 그때 무엇을 할 줄 알았는지 보여야 하기 때문이다.
+     *
+     * @param categoryCodes 이 리포트의 평가 축. 여기 없는 축에는 기술을 매달지 않는다
      */
-    private void saveStacks(AnalysisReport report, List<AnalysisAiResponse.AnalyzedStack> stacks) {
+    private void saveStacks(AnalysisReport report, Set<String> categoryCodes,
+                            List<AnalysisAiResponse.AnalyzedStack> stacks) {
         dedupeByName(stacks).forEach((name, stack) -> {
             StackDetail detail = stackDetailRepository.findByStackName(name)
                     .orElseGet(() -> stackDetailRepository.save(StackDetail.ofName(name)));
+            String categoryCode = stack.category() != null && categoryCodes.contains(stack.category())
+                    ? stack.category()
+                    : null;
 
             userStackRepository.save(UserStack.create(
-                    report.getUser(), detail, report, toStackLevel(stack.level()), stack.score(), stack.description()));
+                    report.getUser(), detail, report, toStackLevel(stack.level()), stack.score(), stack.description(),
+                    categoryCode, stack.foundInGithub(), stack.foundInPortfolio()));
         });
     }
 
