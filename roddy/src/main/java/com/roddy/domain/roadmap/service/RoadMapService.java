@@ -67,12 +67,23 @@ public class RoadMapService {
                 context.currentSkills(), context.gapSkills(),
                 context.targetJob().getDescription(), context.targetCompany()));
         validateGenerated(generated);
-        return GeneratedRoadMapResponse.from(generated);
+        return GeneratedRoadMapResponse.from(
+                generated,
+                context.currentSkills(),
+                context.gapSkills(),
+                context.targetJob().getDescription(),
+                context.targetCompany());
     }
 
     @Transactional
     public SaveRoadMapResponse save(Long userId, SaveRoadMapRequest request) {
-        RoadMapContext context = context(userId);
+        User user = requireUser(userId);
+        RoadMapContext context = new RoadMapContext(
+                user,
+                resolveTargetJob(request.targetJob()),
+                normalizedNullable(request.targetCompany()),
+                normalized(request.currentSkills()),
+                normalized(request.gapSkills()));
         validateStages(request.steps().stream().map(SaveRoadMapRequest.Step::stage).toList());
         String fingerprint = fingerprint(context, request);
 
@@ -155,6 +166,17 @@ public class RoadMapService {
 
     private List<String> normalized(List<String> values) {
         return values.stream().map(String::trim).toList();
+    }
+
+    private String normalizedNullable(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private DesiredJob resolveTargetJob(String description) {
+        return java.util.Arrays.stream(DesiredJob.values())
+                .filter(job -> job.getDescription().equals(description.trim()))
+                .findFirst()
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.INVALID_PARAMETER));
     }
 
     private boolean invalidValues(List<String> values) {

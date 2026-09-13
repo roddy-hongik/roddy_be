@@ -3,13 +3,18 @@ package com.roddy.domain.roadmap.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
 public record SaveRoadMapRequest(
         @NotBlank @Size(max = 255) String title,
-        @NotEmpty @Size(min = 3, max = 3) List<@Valid Step> steps
+        @NotEmpty @Size(min = 3, max = 3) List<@Valid Step> steps,
+        @NotNull List<@NotBlank String> currentSkills,
+        @NotEmpty List<@NotBlank String> gapSkills,
+        @NotBlank String targetJob,
+        String targetCompany
 ) {
     public record Step(
             @NotBlank @Size(max = 30) String stage,

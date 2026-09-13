@@ -109,6 +109,10 @@ class RoadMapControllerTest {
         mockMvc.perform(post("/api/roadmap/generate").with(user(new UserDetailsImpl(user))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.title").value("백엔드 성장 로드맵"))
+                .andExpect(jsonPath("$.result.currentSkills[0]").value("Java"))
+                .andExpect(jsonPath("$.result.gapSkills[0]").value("Redis"))
+                .andExpect(jsonPath("$.result.targetJob").value("백엔드 개발자"))
+                .andExpect(jsonPath("$.result.targetCompany").value("토스"))
                 .andExpect(jsonPath("$.result.steps.length()").value(3))
                 .andExpect(jsonPath("$.result.steps[0].stage").value("기초"))
                 .andExpect(jsonPath("$.result.steps[2].stage").value("실전 프로젝트"));
@@ -125,9 +129,15 @@ class RoadMapControllerTest {
                     {"stage":"기초","goal":"기초 목표","topics":["Redis"],"outputs":["예제"]},
                     {"stage":"심화","goal":"심화 목표","topics":["분산 락"],"outputs":["부하 테스트"]},
                     {"stage":"실전 프로젝트","goal":"실전 목표","topics":["캐시"],"outputs":["프로젝트"]}
-                  ]
+                  ],
+                  "currentSkills": ["Java", "Spring Boot"],
+                  "gapSkills": ["Redis"],
+                  "targetJob": "백엔드 개발자",
+                  "targetCompany": "토스"
                 }
                 """;
+
+        savePosting("P-2", Set.of("Kafka"));
 
         mockMvc.perform(post("/api/roadmap/saved")
                         .with(user(new UserDetailsImpl(user)))
