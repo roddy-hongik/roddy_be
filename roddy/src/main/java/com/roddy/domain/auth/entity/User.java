@@ -104,6 +104,12 @@ public class User extends BaseEntity {
 
     private LocalDateTime deletedAt;
 
+    /** 어드민이 정지한 시각. 비어 있으면 정상 계정이다. 정지된 계정은 로그인하거나 토큰으로 인증할 수 없다. */
+    private LocalDateTime suspendedAt;
+
+    /** 마지막으로 토큰을 받은 시각(로그인·재발급). 어드민 화면의 최근 활동일로 쓴다. */
+    private LocalDateTime lastLoginAt;
+
     // 희망 직무
     @Enumerated(EnumType.STRING)
     private DesiredJob desiredJob;
@@ -215,5 +221,17 @@ public class User extends BaseEntity {
 
     public boolean isWithdrawn() {
         return deletedAt != null;
+    }
+
+    public void suspend(LocalDateTime suspendedAt) {
+        this.suspendedAt = suspendedAt;
+    }
+
+    public void unsuspend() {
+        this.suspendedAt = null;
+    }
+
+    public boolean isSuspended() {
+        return suspendedAt != null;
     }
 }

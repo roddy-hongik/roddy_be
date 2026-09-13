@@ -17,6 +17,7 @@ public enum GeneralErrorCode implements BaseErrorCode {
     INVALID_LOGIN(HttpStatus.UNAUTHORIZED, "AUTH_4012", "올바르지 않은 아이디, 혹은 비밀번호입니다."),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_4013", "유효하지 않은 토큰입니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "AUTH_4031", "접근 권한이 없습니다."),
+    USER_SUSPENDED(HttpStatus.FORBIDDEN, "AUTH_4032", "정지된 계정입니다. 운영자에게 문의해주세요."),
     TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH_4191", "토큰이 만료되었습니다."),
 
     // 서버 내부 에러
@@ -31,6 +32,7 @@ public enum GeneralErrorCode implements BaseErrorCode {
 
     // 유저 에러
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_4041", "유저를 찾을 수 없습니다."),
+    USER_SUSPEND_FORBIDDEN(HttpStatus.BAD_REQUEST, "USER_4001", "어드민 계정은 정지할 수 없습니다."),
 
     // 커뮤니티 에러
     COMMUNITY_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMUNITY_4041", "게시글을 찾을 수 없습니다."),

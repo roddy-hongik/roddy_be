@@ -51,17 +51,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     String email = jwtUtil.getEmailFromToken(claims);
                     UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-                    Authentication authentication = new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
+                    if (userDetails.isAccountNonLocked()) {
+                        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
 
-                    SecurityContext context = SecurityContextHolder.getContext();
-                    context.setAuthentication(authentication);
-                    SecurityContextHolder.setContext(context);
+                        SecurityContext context = SecurityContextHolder.getContext();
+                        context.setAuthentication(authentication);
+                        SecurityContextHolder.setContext(context);
 
-                    log.info("사용자 인증 성공: email = {}", email);
+                        log.info("사용자 인증 성공: email = {}", email);
+                    } else {
+                        // 어드민이 정지한 계정은 정지 전에 받은 토큰으로도 인증하지 않는다.
+                        log.info("정지된 계정의 토큰입니다. email = {}", email);
+                    }
                 } catch (UsernameNotFoundException e) {
                     SecurityContextHolder.clearContext();
                     log.debug("JWT subject user not found");

@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -56,7 +57,7 @@ public class AuthService {
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByEmailAndDeletedAtIsNull(request.email())
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.INVALID_LOGIN, "이메일과 비밀번호를 확인해주세요."));
@@ -75,11 +76,15 @@ public class AuthService {
         return issueTokens(user);
     }
 
+    /** 로컬·소셜 로그인이 함께 쓰는 토큰 발급. 정지된 계정에는 토큰을 주지 않고, 발급한 시각을 최근 활동일로 남긴다. */
     public LoginResponse issueTokens(User user) {
+        requireNotSuspended(user);
+
         String accessToken = jwtUtil.createAccessToken(user.getEmail(), user.getId());
         String refreshTokenValue = jwtUtil.createRefreshToken(user.getEmail());
 
         saveRefreshToken(user.getId(), refreshTokenValue);
+        userRepository.updateLastLoginAt(user.getId(), LocalDateTime.now());
 
         return LoginResponse.builder()
                 .accessToken(accessToken)
@@ -122,11 +127,13 @@ public class AuthService {
 
             User user = userRepository.findByIdAndDeletedAtIsNull(accessUserId)
                     .orElseThrow(() -> new GeneralException(GeneralErrorCode.USER_NOT_FOUND));
+            requireNotSuspended(user);
 
             String newAccessToken = jwtUtil.createAccessToken(user.getEmail(), user.getId());
             String newRefreshToken = jwtUtil.createRefreshToken(user.getEmail());
 
             saveRefreshToken(user.getId(), newRefreshToken);
+            userRepository.updateLastLoginAt(user.getId(), LocalDateTime.now());
 
             return ReissueTokenResponse.builder()
                     .accessToken(newAccessToken)
@@ -134,6 +141,17 @@ public class AuthService {
                     .build();
         } finally {
             releaseReissueLock(lockKey, lockOwner);
+        }
+    }
+
+    /** 저장한 리프레시 토큰을 지운다. 정지된 계정이 토큰을 다시 받지 못하게 할 때 쓴다. */
+    public void revokeRefreshToken(Long userId) {
+        redisTemplate.delete(getRefreshTokenKey(userId));
+    }
+
+    private void requireNotSuspended(User user) {
+        if (user.isSuspended()) {
+            throw new GeneralException(GeneralErrorCode.USER_SUSPENDED);
         }
     }
 
