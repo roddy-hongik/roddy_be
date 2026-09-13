@@ -6,6 +6,7 @@ import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.enums.ExperienceLevel;
 import com.roddy.domain.enums.Role;
 import com.roddy.domain.enums.SocialType;
+import com.roddy.domain.notification.NotificationService;
 import com.roddy.global.client.analysis.AnalysisAiClient;
 import com.roddy.global.client.analysis.AnalysisAiRequest;
 import com.roddy.global.client.analysis.AnalysisAiResponse;
@@ -36,10 +37,11 @@ class AnalysisRunnerTest {
     private final AnalysisAiClient analysisAiClient = mock(AnalysisAiClient.class);
     private final AnalysisReportStore analysisReportStore = mock(AnalysisReportStore.class);
     private final S3ObjectUrlService s3ObjectUrlService = mock(S3ObjectUrlService.class);
+    private final NotificationService notificationService = mock(NotificationService.class);
 
     private final AnalysisRunner analysisRunner = new AnalysisRunner(
             userRepository, analysisAiClient, analysisReportStore, s3ObjectUrlService,
-            new CompetencyCategoryCatalog());
+            new CompetencyCategoryCatalog(), notificationService);
 
     @BeforeEach
     void setUp() {
@@ -64,6 +66,7 @@ class AnalysisRunnerTest {
                 .extracting(AnalysisAiRequest.Category::code)
                 .containsExactly("DATA_MODELING", "ARCHITECTURE", "SCALABILITY", "STABILITY", "DEVOPS_CICD", "MONITORING");
         verify(analysisReportStore).complete(eq(REPORT_ID), any());
+        verify(notificationService).createGrowthReport(USER_ID, REPORT_ID);
     }
 
     @Test

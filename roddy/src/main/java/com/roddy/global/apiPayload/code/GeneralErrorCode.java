@@ -50,6 +50,12 @@ public enum GeneralErrorCode implements BaseErrorCode {
     // 로드맵 에러
     ROADMAP_GAP_EMPTY(HttpStatus.BAD_REQUEST, "ROADMAP_4001", "부족 기술이 없어 로드맵을 생성할 수 없습니다."),
 
+    // 모의면접 에러
+    INTERVIEW_GAP_EMPTY(HttpStatus.BAD_REQUEST, "INTERVIEW_4001", "부족 기술이 없어 모의면접 질문을 생성할 수 없습니다."),
+
+    // 알림 에러
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION_4041", "알림을 찾을 수 없습니다."),
+
     // 스터디 에러
     STUDY_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4041", "스터디 모집글을 찾을 수 없습니다."),
     STUDY_APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4042", "스터디 지원 내역을 찾을 수 없습니다."),
