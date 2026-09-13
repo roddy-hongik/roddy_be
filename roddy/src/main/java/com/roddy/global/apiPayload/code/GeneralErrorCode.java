@@ -47,6 +47,9 @@ public enum GeneralErrorCode implements BaseErrorCode {
     // 역량 분석 에러
     ANALYSIS_REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "ANALYSIS_4041", "분석 리포트를 찾을 수 없습니다."),
 
+    // 로드맵 에러
+    ROADMAP_GAP_EMPTY(HttpStatus.BAD_REQUEST, "ROADMAP_4001", "부족 기술이 없어 로드맵을 생성할 수 없습니다."),
+
     // 스터디 에러
     STUDY_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4041", "스터디 모집글을 찾을 수 없습니다."),
     STUDY_APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4042", "스터디 지원 내역을 찾을 수 없습니다."),
