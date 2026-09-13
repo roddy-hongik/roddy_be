@@ -5,6 +5,7 @@ import com.roddy.domain.jobposting.dto.IngestSummary;
 import com.roddy.domain.jobposting.dto.JobPostingSnapshot;
 import com.roddy.domain.jobposting.entity.JobPosting;
 import com.roddy.domain.jobposting.repository.JobPostingRepository;
+import com.roddy.domain.notification.NotificationService;
 import com.roddy.global.crawler.CrawlRecord;
 import com.roddy.global.crawler.CrawlResult;
 import com.roddy.global.crawler.spec.CrawlSpec;
@@ -32,6 +33,7 @@ public class JobPostingIngestService {
     private final JobPostingRepository jobPostingRepository;
     private final JobPostingSnapshotConverter converter;
     private final TechStackExtractor techStackExtractor;
+    private final NotificationService notificationService;
 
     @Transactional
     public IngestSummary ingest(CrawlSpec spec, CrawlResult result, LocalDateTime crawledAt) {
@@ -48,8 +50,9 @@ public class JobPostingIngestService {
 
                 Optional<JobPosting> existing = jobPostingRepository
                         .findByCompanyCodeAndExternalId(snapshot.companyCode(), snapshot.externalId());
+                boolean newlyCreated = existing.isEmpty();
                 JobPosting posting;
-                if (existing.isEmpty()) {
+                if (newlyCreated) {
                     posting = jobPostingRepository.save(JobPosting.create(snapshot, crawledAt));
                     created++;
                 } else if (existing.get().hasSameContent(snapshot)) {
@@ -64,6 +67,14 @@ public class JobPostingIngestService {
 
                 // 내용이 그대로여도 다시 뽑는다. 사전이 늘어나면 기존 공고도 따라 채워진다.
                 posting.updateTechStacks(techStackExtractor.extract(snapshot));
+                if (newlyCreated && posting.getStatus() == JobPostingStatus.OPEN) {
+                    try {
+                        notificationService.createJobMatchNotifications(posting);
+                    } catch (RuntimeException notificationError) {
+                        log.warn("[{}] 맞춤 공고 알림을 만들지 못했습니다: {}",
+                                spec.company(), notificationError.getMessage());
+                    }
+                }
             } catch (RuntimeException e) {
                 failed++;
                 log.warn("[{}] 공고를 적재하지 못했습니다: {}", spec.company(), e.getMessage());
