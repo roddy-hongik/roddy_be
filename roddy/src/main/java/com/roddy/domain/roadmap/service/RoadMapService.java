@@ -1,16 +1,10 @@
 package com.roddy.domain.roadmap.service;
 
 import com.roddy.domain.RoadMap;
-import com.roddy.domain.analysis.entity.AnalysisReport;
-import com.roddy.domain.analysis.service.AnalysisReportStore;
-import com.roddy.domain.analysis.service.UserTechStackReader;
+import com.roddy.domain.analysis.service.CompetencyGapReader;
+import com.roddy.domain.analysis.service.CompetencyGapReader.CompetencyGap;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
-import com.roddy.domain.enums.DesiredJob;
-import com.roddy.domain.enums.JobPostingStatus;
-import com.roddy.domain.jobposting.repository.JobPostingRepository;
-import com.roddy.domain.mypage.entity.DesiredCompany;
-import com.roddy.domain.mypage.repository.DesiredCompanyRepository;
 import com.roddy.domain.roadmap.dto.GeneratedRoadMapResponse;
 import com.roddy.domain.roadmap.dto.RoadMapSummaryResponse;
 import com.roddy.domain.roadmap.dto.SaveRoadMapRequest;
@@ -31,34 +25,27 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class RoadMapService {
 
-    private static final int MAX_GAP_SKILLS = 10;
     private static final List<String> STAGE_ORDER = List.of("기초", "심화", "실전 프로젝트");
 
     private final UserRepository userRepository;
-    private final DesiredCompanyRepository desiredCompanyRepository;
-    private final AnalysisReportStore analysisReportStore;
-    private final UserTechStackReader userTechStackReader;
-    private final JobPostingRepository jobPostingRepository;
+    private final CompetencyGapReader competencyGapReader;
     private final RoadMapRepository roadMapRepository;
     private final RoadMapAiClient roadMapAiClient;
 
     @Transactional(readOnly = true)
     public RoadMapSummaryResponse getSummary(Long userId) {
-        return context(userId).toResponse();
+        return toResponse(competencyGapReader.read(userId));
     }
 
     @Transactional(readOnly = true)
     public GeneratedRoadMapResponse generate(Long userId) {
-        RoadMapContext context = context(userId);
+        CompetencyGap context = competencyGapReader.read(userId);
         if (context.gapSkills().isEmpty()) {
             throw new GeneralException(GeneralErrorCode.ROADMAP_GAP_EMPTY);
         }
@@ -72,7 +59,7 @@ public class RoadMapService {
 
     @Transactional
     public SaveRoadMapResponse save(Long userId, SaveRoadMapRequest request) {
-        RoadMapContext context = context(userId);
+        CompetencyGap context = competencyGapReader.read(userId);
         validateStages(request.steps().stream().map(SaveRoadMapRequest.Step::stage).toList());
         String fingerprint = fingerprint(context, request);
 
@@ -89,7 +76,7 @@ public class RoadMapService {
                 .toList();
     }
 
-    private SaveRoadMapResponse saveNew(RoadMapContext context, SaveRoadMapRequest request, String fingerprint) {
+    private SaveRoadMapResponse saveNew(CompetencyGap context, SaveRoadMapRequest request, String fingerprint) {
         RoadMap roadMap = RoadMap.create(
                 context.user(), request.title().trim(), context.targetJob(), context.targetCompany(),
                 context.currentSkills(), context.gapSkills(), fingerprint);
@@ -97,36 +84,6 @@ public class RoadMapService {
                 step.stage(), step.goal().trim(), normalized(step.topics()), normalized(step.outputs())));
 
         return SaveRoadMapResponse.saved(SavedRoadMapResponse.from(roadMapRepository.saveAndFlush(roadMap)));
-    }
-
-    private RoadMapContext context(Long userId) {
-        User user = requireUser(userId);
-        AnalysisReport report = analysisReportStore.findLatestCompleted(userId)
-                .orElseThrow(() -> new GeneralException(GeneralErrorCode.ANALYSIS_REPORT_NOT_FOUND));
-        DesiredJob targetJob = report.getDesiredJob() != null ? report.getDesiredJob() : user.getDesiredJob();
-        if (targetJob == null) {
-            throw new GeneralException(GeneralErrorCode.ANALYSIS_REPORT_NOT_FOUND);
-        }
-
-        Map<String, Integer> scores = userTechStackReader.read(userId);
-        List<String> currentSkills = scores.entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed()
-                        .thenComparing(Map.Entry.comparingByKey()))
-                .map(Map.Entry::getKey)
-                .toList();
-        Set<String> currentKeys = currentSkills.stream()
-                .map(skill -> skill.toLowerCase(Locale.ROOT))
-                .collect(Collectors.toSet());
-        List<String> gapSkills = jobPostingRepository.countRequiredStacks(JobPostingStatus.OPEN, targetJob).stream()
-                .map(row -> (String) row[0])
-                .filter(skill -> !currentKeys.contains(skill.toLowerCase(Locale.ROOT)))
-                .limit(MAX_GAP_SKILLS)
-                .toList();
-        String targetCompany = desiredCompanyRepository.findByUserId(userId)
-                .map(DesiredCompany::getDesiredCompany)
-                .orElse(null);
-
-        return new RoadMapContext(user, targetJob, targetCompany, currentSkills, gapSkills);
     }
 
     private User requireUser(Long userId) {
@@ -161,7 +118,7 @@ public class RoadMapService {
         return values.isEmpty() || values.stream().anyMatch(value -> value == null || value.isBlank());
     }
 
-    private String fingerprint(RoadMapContext context, SaveRoadMapRequest request) {
+    private String fingerprint(CompetencyGap context, SaveRoadMapRequest request) {
         String canonical = request.title().trim() + "\u0000" + context.targetJob().name() + "\u0000"
                 + (context.targetCompany() == null ? "" : context.targetCompany()) + "\u0000"
                 + String.join("\u0000", context.currentSkills()) + "\u0000"
@@ -179,10 +136,9 @@ public class RoadMapService {
         }
     }
 
-    private record RoadMapContext(User user, DesiredJob targetJob, String targetCompany,
-                                  List<String> currentSkills, List<String> gapSkills) {
-        private RoadMapSummaryResponse toResponse() {
-            return new RoadMapSummaryResponse(currentSkills, gapSkills, targetJob.getDescription(), targetCompany);
-        }
+    private RoadMapSummaryResponse toResponse(CompetencyGap context) {
+        return new RoadMapSummaryResponse(
+                context.currentSkills(), context.gapSkills(),
+                context.targetJob().getDescription(), context.targetCompany());
     }
 }
