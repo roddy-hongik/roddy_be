@@ -51,6 +51,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -100,10 +101,15 @@ public class CommunityPostService {
                 : new ArrayList<>(communityPostRepository.findAllWithAuthorAndTechStacksByIds(ids));
         // in 절은 순서를 지켜 주지 않는다. 좋아요를 누른 순서대로 다시 놓는다.
         posts.sort((left, right) -> Integer.compare(ids.indexOf(left.getId()), ids.indexOf(right.getId())));
+        Map<Long, Long> commentCounts = communityCommentRepository.countByPostIds(ids).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        CommunityCommentRepository.PostCommentCount::getPostId,
+                        CommunityCommentRepository.PostCommentCount::getCommentCount
+                ));
 
         return new CommunityPostListResponse(
                 posts.stream()
-                        .map(this::toListItemResponse)
+                        .map(post -> toListItemResponse(post, Math.toIntExact(commentCounts.getOrDefault(post.getId(), 0L))))
                         .toList(),
                 likedPostIds.getNumber(),
                 likedPostIds.getSize(),
@@ -298,6 +304,10 @@ public class CommunityPostService {
     }
 
     private CommunityPostListItemResponse toListItemResponse(CommunityPost post) {
+        return toListItemResponse(post, getCommentCount(post.getId()));
+    }
+
+    private CommunityPostListItemResponse toListItemResponse(CommunityPost post, int commentCount) {
         return new CommunityPostListItemResponse(
                 post.getId(),
                 toPostType(post),
@@ -308,7 +318,7 @@ public class CommunityPostService {
                 post.getCreatedAt(),
                 post.getViewCount(),
                 post.getLikeCount(),
-                getCommentCount(post.getId()),
+                commentCount,
                 createExcerpt(post.getContent()),
                 post.getContent(),
                 extractRoadmapId(post),

@@ -464,18 +464,26 @@ class CommunityPostControllerTest {
         CommunityPost othersLike = savePost(writer, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "남이 좋아요한 글", null, null, "Spring");
 
         // 글을 쓴 순서가 아니라 좋아요를 누른 순서를 따른다.
-        like(reader, first);
         like(reader, second);
+        like(reader, first);
         like(other, othersLike);
+        mockMvc.perform(post("/api/community/posts/{postId}/comments", first.getId())
+                        .with(user(new UserDetailsImpl(reader)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("좋아요한 글의 댓글", null))))
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/community/posts/likes/me")
                         .with(user(new UserDetailsImpl(reader))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.totalElements").value(2))
-                .andExpect(jsonPath("$.result.posts[0].title").value("나중에 좋아요한 글"))
-                .andExpect(jsonPath("$.result.posts[0].type").value("interview"))
+                .andExpect(jsonPath("$.result.posts[0].title").value("먼저 좋아요한 글"))
+                .andExpect(jsonPath("$.result.posts[0].type").value("general"))
                 .andExpect(jsonPath("$.result.posts[0].likes").value(1))
-                .andExpect(jsonPath("$.result.posts[1].title").value("먼저 좋아요한 글"));
+                // 댓글 수는 글 id 를 모아 한 번에 센다. 댓글이 없는 글은 0 이다.
+                .andExpect(jsonPath("$.result.posts[0].commentCount").value(1))
+                .andExpect(jsonPath("$.result.posts[1].title").value("나중에 좋아요한 글"))
+                .andExpect(jsonPath("$.result.posts[1].commentCount").value(0));
 
         mockMvc.perform(get("/api/community/posts/likes/me")
                         .param("page", "1")
@@ -484,7 +492,7 @@ class CommunityPostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.totalPages").value(2))
                 .andExpect(jsonPath("$.result.posts.length()").value(1))
-                .andExpect(jsonPath("$.result.posts[0].title").value("먼저 좋아요한 글"));
+                .andExpect(jsonPath("$.result.posts[0].title").value("나중에 좋아요한 글"));
     }
 
     @Test

@@ -20,7 +20,7 @@ public interface CommunityPostLikeRepository extends JpaRepository<CommunityPost
             value = """
                     select l.post.id from CommunityPostLike l
                     where l.user.id = :userId
-                    order by l.id desc
+                    order by l.createdAt desc, l.id desc
                     """,
             countQuery = """
                     select count(l) from CommunityPostLike l
