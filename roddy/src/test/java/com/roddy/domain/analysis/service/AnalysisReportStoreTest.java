@@ -8,6 +8,8 @@ import com.roddy.domain.analysis.repository.UserStackRepository;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
 import com.roddy.domain.auth.service.SocialAuthService;
+import com.roddy.domain.enums.DesiredJob;
+import com.roddy.domain.enums.ExperienceLevel;
 import com.roddy.domain.enums.Role;
 import com.roddy.domain.enums.SocialType;
 import com.roddy.domain.enums.StackLevel;
@@ -24,6 +26,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -82,6 +85,19 @@ class AnalysisReportStoreTest {
         assertThat(report.getStatus()).isEqualTo(AnalysisStatus.PENDING);
         assertThat(report.getTitle()).isNull();
         assertThat(analysisReportStore.isAnalyzing(user.getId())).isTrue();
+    }
+
+    @Test
+    @DisplayName("리포트에 분석을 요청한 당시의 직무를 남긴다")
+    void keepsDesiredJobAtRequest() {
+        User user = saveUser("job@example.com");
+        changeDesiredJob(user, DesiredJob.BACKEND);
+
+        Long reportId = analysisReportStore.createPending(user.getId());
+        // 평가 축이 직무마다 다르다. 요청한 뒤 직무를 바꿔도 이 리포트는 백엔드 축으로 채점해야 한다.
+        changeDesiredJob(user, DesiredJob.FRONTEND);
+
+        assertThat(analysisReportStore.findDesiredJob(reportId)).isEqualTo(DesiredJob.BACKEND);
     }
 
     @Test
@@ -212,6 +228,12 @@ class AnalysisReportStoreTest {
                 "백엔드 주니어", 72, "요약", "깃허브 분석", "포트폴리오 분석",
                 List.of(stacks),
                 new AnalysisAiResponse.Sources(12, true, List.of()));
+    }
+
+    private void changeDesiredJob(User user, DesiredJob desiredJob) {
+        user.completeProfile("분석유저", 27, ExperienceLevel.JUNIOR, desiredJob,
+                "portfolio/1/portfolio.pdf", "portfolio.pdf", LocalDateTime.now());
+        userRepository.save(user);
     }
 
     private void clear() {

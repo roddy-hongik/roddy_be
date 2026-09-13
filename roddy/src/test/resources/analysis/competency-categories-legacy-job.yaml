@@ -1,0 +1,5 @@
+jobs:
+  BEGINNER:
+    - code: ARCHITECTURE
+      name: 아키텍처
+      description: 설명

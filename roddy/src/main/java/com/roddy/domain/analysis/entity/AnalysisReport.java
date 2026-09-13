@@ -3,6 +3,7 @@ package com.roddy.domain.analysis.entity;
 import com.roddy.domain.BaseEntity;
 import com.roddy.domain.analysis.enums.AnalysisStatus;
 import com.roddy.domain.auth.entity.User;
+import com.roddy.domain.enums.DesiredJob;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -54,6 +55,14 @@ public class AnalysisReport extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    /**
+     * 분석을 요청한 당시의 희망 직무. 평가 축이 직무마다 달라서, 나중에 직무를 바꿔도 이 리포트가 어떤
+     * 축으로 채점됐는지 알 수 있어야 한다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private DesiredJob desiredJob;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AnalysisStatus status;
@@ -82,6 +91,7 @@ public class AnalysisReport extends BaseEntity {
     public static AnalysisReport pending(User user) {
         return AnalysisReport.builder()
                 .user(user)
+                .desiredJob(user.getDesiredJob())
                 .status(AnalysisStatus.PENDING)
                 .totalScore(0)
                 .build();

@@ -9,6 +9,7 @@ import com.roddy.domain.analysis.repository.StackDetailRepository;
 import com.roddy.domain.analysis.repository.UserStackRepository;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
+import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.enums.StackLevel;
 import com.roddy.domain.jobposting.service.TechStackExtractor;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
@@ -66,6 +67,14 @@ public class AnalysisReportStore {
     @Transactional(readOnly = true)
     public boolean isAnalyzing(Long userId) {
         return analysisReportRepository.existsByUserIdAndStatus(userId, AnalysisStatus.PENDING);
+    }
+
+    /** 분석을 요청한 당시의 직무. 이 리포트를 어떤 평가 축으로 채점할지 정하는 기준이다. */
+    @Transactional(readOnly = true)
+    public DesiredJob findDesiredJob(Long reportId) {
+        return analysisReportRepository.findById(reportId)
+                .map(AnalysisReport::getDesiredJob)
+                .orElseThrow(() -> new IllegalStateException("분석 리포트가 없습니다. reportId=" + reportId));
     }
 
     /** 가장 최근에 요청한 분석. 진행 중이거나 실패한 것일 수 있다. */
