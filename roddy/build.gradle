@@ -26,7 +26,8 @@ repositories {
 
 ext {
 	set('springCloudVersion', "2025.1.0")
-	set('springCloudAwsVersion', "3.4.2")
+	// 3.x 는 Boot 3 용이라 Boot 4 에서 S3 자동 설정이 없어진 메서드를 불러 기동이 멈춘다.
+	set('springCloudAwsVersion', "4.0.2")
 }
 
 dependencies {
@@ -43,6 +44,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	// Boot 4 부터 WebClient.Builder 자동 설정이 webflux 스타터에서 빠졌다. SocialAuthService 가 이 빈을 받는다.
+	implementation 'org.springframework.boot:spring-boot-starter-webclient'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
