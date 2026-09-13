@@ -8,6 +8,9 @@ import com.roddy.domain.enums.SocialType;
 import com.roddy.domain.jobposting.dto.IngestSummary;
 import com.roddy.domain.jobposting.entity.CrawlRun;
 import com.roddy.domain.jobposting.repository.CrawlRunRepository;
+import com.roddy.domain.jobposting.service.JobPostingCrawlLauncher;
+import com.roddy.global.apiPayload.code.GeneralErrorCode;
+import com.roddy.global.apiPayload.exception.GeneralException;
 import com.roddy.global.config.s3.S3Uploader;
 import com.roddy.global.security.UserDetailsImpl;
 import org.junit.jupiter.api.AfterEach;
@@ -27,9 +30,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -54,6 +62,10 @@ class AdminCrawlingControllerTest {
 
     @MockitoBean
     private SocialAuthService socialAuthService;
+
+    /** 실제 채용 사이트로 요청이 나가지 않도록 수집 시작은 가짜로 둔다. */
+    @MockitoBean
+    private JobPostingCrawlLauncher crawlLauncher;
 
     private MockMvc mockMvc;
 
@@ -148,6 +160,51 @@ class AdminCrawlingControllerTest {
     void rejectsAnonymous() throws Exception {
         mockMvc.perform(get("/api/admin/crawling/dashboard"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("현황에 지금 수집이 돌고 있는지 함께 알려준다")
+    void reportsRunningState() throws Exception {
+        given(crawlLauncher.isRunning()).willReturn(true);
+
+        mockMvc.perform(get("/api/admin/crawling/dashboard").with(user(adminDetails())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.running").value(true));
+    }
+
+    @Test
+    @DisplayName("관리자가 수집을 요청하면 뒤에서 시작하고 현황을 바로 돌려준다")
+    void startsCrawlingInBackground() throws Exception {
+        given(crawlLauncher.isRunning()).willReturn(true);
+
+        mockMvc.perform(post("/api/admin/crawling/run").with(user(adminDetails())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.running").value(true))
+                .andExpect(jsonPath("$.result.companies").isArray());
+
+        verify(crawlLauncher).startInBackground();
+    }
+
+    @Test
+    @DisplayName("이미 수집이 돌고 있으면 새로 시작하지 않고 409 를 준다")
+    void rejectsStartWhileRunning() throws Exception {
+        willThrow(new GeneralException(GeneralErrorCode.CRAWL_ALREADY_RUNNING))
+                .given(crawlLauncher).startInBackground();
+
+        mockMvc.perform(post("/api/admin/crawling/run").with(user(adminDetails())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("JOB_4091"));
+    }
+
+    @Test
+    @DisplayName("일반 사용자는 수집을 시작할 수 없다")
+    void rejectsNonAdminStart() throws Exception {
+        User member = saveUser("member-run@example.com", "일반유저", Role.USER);
+
+        mockMvc.perform(post("/api/admin/crawling/run").with(user(new UserDetailsImpl(member))))
+                .andExpect(status().isForbidden());
+
+        verify(crawlLauncher, never()).startInBackground();
     }
 
     private UserDetailsImpl adminDetails() {

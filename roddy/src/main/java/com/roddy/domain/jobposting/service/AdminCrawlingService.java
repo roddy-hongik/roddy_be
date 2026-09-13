@@ -32,6 +32,7 @@ public class AdminCrawlingService {
 
     private final CrawlSpecLoader specLoader;
     private final CrawlRunRepository crawlRunRepository;
+    private final JobPostingCrawlLauncher crawlLauncher;
 
     public CrawlingDashboardResponse getDashboard() {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
@@ -46,6 +47,16 @@ public class AdminCrawlingService {
         }
 
         return summarize(companies);
+    }
+
+    /**
+     * 전체 수집을 뒤에서 시작하고 지금 현황을 돌려준다.
+     *
+     * <p>수집은 수 분이 걸린다. 끝난 결과는 {@code running} 이 꺼질 때까지 현황을 다시 조회해서 본다.
+     */
+    public CrawlingDashboardResponse startCrawling() {
+        crawlLauncher.startInBackground();
+        return getDashboard();
     }
 
     private CrawlingCompanyResponse toCompany(CrawlSpec spec, List<CrawlRun> today, CrawlRun latest) {
@@ -89,7 +100,8 @@ public class AdminCrawlingService {
                 lastCrawledAt,
                 (int) companies.stream().filter(company -> company.status() == CrawlingHealth.ERROR).count(),
                 (int) companies.stream().filter(company -> company.status() == CrawlingHealth.WARNING).count(),
-                List.copyOf(companies)
+                List.copyOf(companies),
+                crawlLauncher.isRunning()
         );
     }
 
