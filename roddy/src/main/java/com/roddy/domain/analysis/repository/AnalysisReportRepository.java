@@ -4,6 +4,7 @@ import com.roddy.domain.analysis.entity.AnalysisReport;
 import com.roddy.domain.analysis.enums.AnalysisStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -15,6 +16,10 @@ public interface AnalysisReportRepository extends JpaRepository<AnalysisReport, 
     Optional<AnalysisReport> findFirstByUserIdOrderByIdDesc(Long userId);
 
     Optional<AnalysisReport> findFirstByUserIdAndStatusOrderByIdDesc(Long userId, AnalysisStatus status);
+
+    List<AnalysisReport> findAllByUserIdAndStatusOrderByIdDesc(Long userId, AnalysisStatus status);
+
+    Optional<AnalysisReport> findByIdAndUserId(Long id, Long userId);
 
     boolean existsByUserIdAndStatus(Long userId, AnalysisStatus status);
 }

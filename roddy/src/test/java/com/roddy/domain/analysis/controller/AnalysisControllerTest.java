@@ -159,7 +159,7 @@ class AnalysisControllerTest {
     @DisplayName("리포트에 축별 점수와 그 축에 속한 기술, 기술의 근거를 찾은 곳을 함께 준다")
     void returnsCategoriesAndStackSources() throws Exception {
         User user = saveUser("categories@example.com");
-        AnalysisReport report = analysisReportRepository.save(completedReport(user));
+        AnalysisReport report = analysisReportRepository.save(completedReport(user, "백엔드 주니어"));
         analysisReportCategoryRepository.save(AnalysisReportCategory.create(
                 report, new CompetencyCategory("ARCHITECTURE", "비즈니스 로직의 아키텍처 설계", "유지보수성과 확장성"),
                 80, "계층을 나눠 설계했다"));
@@ -200,15 +200,73 @@ class AnalysisControllerTest {
     }
 
     @Test
-    @DisplayName("로그인하지 않으면 분석을 요청할 수 없다")
+    @DisplayName("내 리포트 목록은 끝난 리포트만 최신순으로 준다")
+    void listsCompletedReportsNewestFirst() throws Exception {
+        User user = saveUser("list@example.com");
+        User other = saveUser("list-other@example.com");
+        AnalysisReport first = analysisReportRepository.save(completedReport(user, "첫 분석"));
+        AnalysisReport second = analysisReportRepository.save(completedReport(user, "두 번째 분석"));
+        AnalysisReport failed = AnalysisReport.pending(user);
+        failed.fail("RestClientException: 503");
+        analysisReportRepository.save(failed);
+        analysisReportRepository.save(AnalysisReport.pending(user));
+        analysisReportRepository.save(completedReport(other, "남의 분석"));
+
+        // 진행 중이거나 실패한 분석은 결과가 없다. 그 상태는 GET /api/analysis/me 로 본다.
+        mockMvc.perform(get("/api/analysis/reports/me").with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.reports.length()").value(2))
+                .andExpect(jsonPath("$.result.reports[0].id").value(second.getId()))
+                .andExpect(jsonPath("$.result.reports[0].title").value("두 번째 분석"))
+                .andExpect(jsonPath("$.result.reports[0].totalScore").value(70))
+                .andExpect(jsonPath("$.result.reports[1].id").value(first.getId()));
+    }
+
+    @Test
+    @DisplayName("가장 최근이 아닌 지난 리포트도 id 로 열어 볼 수 있다")
+    void returnsReportById() throws Exception {
+        User user = saveUser("detail@example.com");
+        AnalysisReport previous = analysisReportRepository.save(completedReport(user, "지난 분석"));
+        analysisReportRepository.save(completedReport(user, "최근 분석"));
+
+        mockMvc.perform(get("/api/analysis/reports/{reportId}", previous.getId())
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.id").value(previous.getId()))
+                .andExpect(jsonPath("$.result.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.result.title").value("지난 분석"));
+    }
+
+    @Test
+    @DisplayName("남의 리포트는 없는 리포트와 똑같이 404 로 답한다")
+    void hidesOthersReport() throws Exception {
+        User owner = saveUser("owner@example.com");
+        User stranger = saveUser("stranger@example.com");
+        AnalysisReport report = analysisReportRepository.save(completedReport(owner, "남의 분석"));
+
+        // 403 으로 답하면 그 id 의 리포트가 있다는 것을 알려주게 된다.
+        mockMvc.perform(get("/api/analysis/reports/{reportId}", report.getId())
+                        .with(user(new UserDetailsImpl(stranger))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ANALYSIS_4041"));
+        mockMvc.perform(get("/api/analysis/reports/{reportId}", 999_999L)
+                        .with(user(new UserDetailsImpl(stranger))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ANALYSIS_4041"));
+    }
+
+    @Test
+    @DisplayName("로그인하지 않으면 분석을 요청하거나 리포트를 볼 수 없다")
     void rejectsAnonymous() throws Exception {
         mockMvc.perform(post("/api/analysis/me")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/analysis/me")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/analysis/reports/me")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/analysis/reports/{reportId}", 1L)).andExpect(status().isUnauthorized());
     }
 
-    private AnalysisReport completedReport(User user) {
+    private AnalysisReport completedReport(User user, String title) {
         AnalysisReport report = AnalysisReport.pending(user);
-        report.complete("백엔드 주니어", 70, "요약", "깃허브 분석", "포트폴리오 분석", LocalDateTime.now());
+        report.complete(title, 70, "요약", "깃허브 분석", "포트폴리오 분석", LocalDateTime.now());
         return report;
     }
 

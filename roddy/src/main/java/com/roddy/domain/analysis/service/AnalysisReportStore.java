@@ -95,6 +95,18 @@ public class AnalysisReportStore {
         return analysisReportRepository.findFirstByUserIdOrderByIdDesc(userId);
     }
 
+    /** 끝난 리포트를 최신순으로. 진행 중이거나 실패한 분석은 결과가 없어서 뺀다. */
+    @Transactional(readOnly = true)
+    public List<AnalysisReport> findCompleted(Long userId) {
+        return analysisReportRepository.findAllByUserIdAndStatusOrderByIdDesc(userId, AnalysisStatus.COMPLETED);
+    }
+
+    /** 내 리포트 한 건. 남의 리포트는 없는 것과 똑같이 다룬다. */
+    @Transactional(readOnly = true)
+    public Optional<AnalysisReport> findReport(Long userId, Long reportId) {
+        return analysisReportRepository.findByIdAndUserId(reportId, userId);
+    }
+
     @Transactional(readOnly = true)
     public List<AnalysisReportCategory> findCategories(Long reportId) {
         return analysisReportCategoryRepository.findAllByAnalysisReportIdOrderByIdAsc(reportId);

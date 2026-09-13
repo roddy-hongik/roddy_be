@@ -1,7 +1,11 @@
 package com.roddy.domain.analysis.service;
 
+import com.roddy.domain.analysis.dto.response.AnalysisReportListResponse;
 import com.roddy.domain.analysis.dto.response.AnalysisReportResponse;
+import com.roddy.domain.analysis.dto.response.AnalysisReportSummaryResponse;
 import com.roddy.domain.analysis.entity.AnalysisReport;
+import com.roddy.global.apiPayload.code.GeneralErrorCode;
+import com.roddy.global.apiPayload.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -42,6 +46,25 @@ public class AnalysisService {
         return analysisReportStore.findLatest(userId)
                 .map(this::toResponse)
                 .orElseGet(AnalysisReportResponse::notAnalyzed);
+    }
+
+    /** 내 리포트 목록. 끝난 리포트만 최신순으로 싣는다. */
+    public AnalysisReportListResponse getMyReports(Long userId) {
+        return new AnalysisReportListResponse(analysisReportStore.findCompleted(userId).stream()
+                .map(AnalysisReportSummaryResponse::from)
+                .toList());
+    }
+
+    /**
+     * 내 리포트 한 건.
+     *
+     * <p>남의 리포트는 없는 리포트와 똑같이 404 로 답한다. 403 으로 답하면 그 id 의 리포트가 있다는 것을
+     * 알려주게 된다.
+     */
+    public AnalysisReportResponse getMyReport(Long userId, Long reportId) {
+        return analysisReportStore.findReport(userId, reportId)
+                .map(this::toResponse)
+                .orElseThrow(() -> new GeneralException(GeneralErrorCode.ANALYSIS_REPORT_NOT_FOUND));
     }
 
     private AnalysisReportResponse toResponse(AnalysisReport report) {

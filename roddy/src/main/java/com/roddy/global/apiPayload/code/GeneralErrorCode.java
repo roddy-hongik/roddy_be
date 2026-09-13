@@ -44,6 +44,9 @@ public enum GeneralErrorCode implements BaseErrorCode {
     JOB_POSTING_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_4041", "채용공고를 찾을 수 없습니다."),
     CRAWL_ALREADY_RUNNING(HttpStatus.CONFLICT, "JOB_4091", "이미 채용공고 수집이 진행 중입니다."),
 
+    // 역량 분석 에러
+    ANALYSIS_REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "ANALYSIS_4041", "분석 리포트를 찾을 수 없습니다."),
+
     // 스터디 에러
     STUDY_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4041", "스터디 모집글을 찾을 수 없습니다."),
     STUDY_APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4042", "스터디 지원 내역을 찾을 수 없습니다."),
