@@ -3,6 +3,7 @@ package com.roddy.domain.analysis.service;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
 import com.roddy.domain.enums.DesiredJob;
+import com.roddy.domain.notification.NotificationService;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
 import com.roddy.global.apiPayload.exception.GeneralException;
 import com.roddy.global.client.analysis.AnalysisAiClient;
@@ -32,6 +33,7 @@ public class AnalysisRunner {
     private final AnalysisReportStore analysisReportStore;
     private final S3ObjectUrlService s3ObjectUrlService;
     private final CompetencyCategoryCatalog competencyCategoryCatalog;
+    private final NotificationService notificationService;
 
     /**
      * @param reportId 미리 진행 중으로 만들어 둔 리포트. 결과는 이 리포트에 채운다
@@ -41,6 +43,12 @@ public class AnalysisRunner {
         try {
             AnalysisAiResponse response = analysisAiClient.analyze(buildRequest(userId, reportId));
             analysisReportStore.complete(reportId, response);
+            try {
+                notificationService.createGrowthReport(userId, reportId);
+            } catch (RuntimeException notificationError) {
+                log.warn("분석 완료 알림을 만들지 못했습니다. userId={} reportId={}",
+                        userId, reportId, notificationError);
+            }
 
             log.info("역량 분석을 마쳤습니다. userId={} reportId={} 기술={}건",
                     userId, reportId, response.stacks().size());
