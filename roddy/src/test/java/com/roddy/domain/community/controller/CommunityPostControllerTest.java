@@ -455,6 +455,73 @@ class CommunityPostControllerTest {
     }
 
     @Test
+    void 내가_좋아요한_글을_좋아요한_최신순으로_조회한다() throws Exception {
+        User writer = saveUser("liked-writer@example.com", "작성자");
+        User reader = saveUser("liked-reader@example.com", "읽는사람");
+        User other = saveUser("liked-other@example.com", "다른사람");
+        CommunityPost first = savePost(writer, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "먼저 좋아요한 글", null, null, "Spring");
+        CommunityPost second = savePost(writer, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.FINTECH, "나중에 좋아요한 글", "토스", "백엔드", "Java");
+        CommunityPost othersLike = savePost(writer, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "남이 좋아요한 글", null, null, "Spring");
+
+        // 글을 쓴 순서가 아니라 좋아요를 누른 순서를 따른다.
+        like(reader, second);
+        like(reader, first);
+        like(other, othersLike);
+        mockMvc.perform(post("/api/community/posts/{postId}/comments", first.getId())
+                        .with(user(new UserDetailsImpl(reader)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("좋아요한 글의 댓글", null))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/community/posts/likes/me")
+                        .with(user(new UserDetailsImpl(reader))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.totalElements").value(2))
+                .andExpect(jsonPath("$.result.posts[0].title").value("먼저 좋아요한 글"))
+                .andExpect(jsonPath("$.result.posts[0].type").value("general"))
+                .andExpect(jsonPath("$.result.posts[0].likes").value(1))
+                // 댓글 수는 글 id 를 모아 한 번에 센다. 댓글이 없는 글은 0 이다.
+                .andExpect(jsonPath("$.result.posts[0].commentCount").value(1))
+                .andExpect(jsonPath("$.result.posts[1].title").value("나중에 좋아요한 글"))
+                .andExpect(jsonPath("$.result.posts[1].commentCount").value(0));
+
+        mockMvc.perform(get("/api/community/posts/likes/me")
+                        .param("page", "1")
+                        .param("size", "1")
+                        .with(user(new UserDetailsImpl(reader))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.totalPages").value(2))
+                .andExpect(jsonPath("$.result.posts.length()").value(1))
+                .andExpect(jsonPath("$.result.posts[0].title").value("나중에 좋아요한 글"));
+    }
+
+    @Test
+    void 좋아요를_취소한_글은_좋아요한_글_목록에서_빠진다() throws Exception {
+        User user = saveUser("liked-cancel@example.com", "취소한사람");
+        CommunityPost post = savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "취소할 글", null, null, "Spring");
+        like(user, post);
+        like(user, post);
+
+        mockMvc.perform(get("/api/community/posts/likes/me")
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.totalElements").value(0))
+                .andExpect(jsonPath("$.result.posts.length()").value(0));
+    }
+
+    @Test
+    void 비로그인_사용자는_좋아요한_글_목록을_볼_수_없다() throws Exception {
+        mockMvc.perform(get("/api/community/posts/likes/me"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private void like(User user, CommunityPost post) throws Exception {
+        mockMvc.perform(post("/api/community/posts/{postId}/like", post.getId())
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void 중복_신고_방지() throws Exception {
         User user = saveUser("report@example.com", "신고사용자");
         CommunityPost post = savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.GENERALIST, "신고 글", "라인", "백엔드", "Spring");
