@@ -1,3 +1,0 @@
-# 테스트에만 쓰는 의존성. 도커 이미지에는 requirements.txt 만 들어간다.
--r requirements.txt
-jsonschema==4.23.0

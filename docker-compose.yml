@@ -1,5 +1,6 @@
 # 로디 백엔드를 한 번에 띄운다.
 #
+#   git clone https://github.com/roddy-hongik/roddy_ai.git ../roddy_ai   (AI 서버 코드. 처음 한 번)
 #   cp .env.example .env   (값을 채운 뒤)
 #   docker compose up --build
 #
@@ -45,9 +46,11 @@ services:
       timeout: 10s
       retries: 30
 
+  # AI 서버 코드는 roddy-hongik/roddy_ai 레포가 원본이다. 비공개 레포라 git 주소 대신 받아 둔 클론으로 빌드한다.
+  # 기본은 이 레포 옆의 ../roddy_ai 이고, 다른 곳에 받았으면 RODDY_AI_PATH 로 경로를 준다. 빌드 전에 클론을 최신으로 당겨 둔다.
   ai:
     build:
-      context: ./roddy_ai
+      context: ${RODDY_AI_PATH:-../roddy_ai}
     environment:
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
