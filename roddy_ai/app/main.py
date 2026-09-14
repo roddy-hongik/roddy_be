@@ -1,15 +1,22 @@
 """로디 AI 서버.
 
 백엔드만 호출하는 내부 서비스다. 깃허브와 포트폴리오를 읽어 역량 리포트를 만들고, 부족한 기술을 채우는
-학습 로드맵을 만든다.
+학습 로드맵과 그 기술을 확인하는 모의면접 질문을 만든다.
 """
 import logging
 
 from fastapi import Depends, FastAPI
 
-from app import github, portfolio, roadmap
+from app import github, interview, portfolio, roadmap
 from app.analyzer import analyze
-from app.schemas import AnalysisRequest, AnalysisResponse, RoadmapRequest, RoadmapResponse
+from app.schemas import (
+    AnalysisRequest,
+    AnalysisResponse,
+    InterviewQuestionRequest,
+    InterviewQuestionResponse,
+    RoadmapRequest,
+    RoadmapResponse,
+)
 from app.security import verify_internal_caller
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -76,4 +83,27 @@ def create_roadmap(
     response = roadmap.generate(request)
 
     logger.info("로드맵 생성을 마쳤습니다. 단계=%d", len(response.steps))
+    return response
+
+
+@app.post("/internal/interview-questions", response_model=InterviewQuestionResponse)
+def create_interview_questions(
+    request: InterviewQuestionRequest,
+    _: None = Depends(verify_internal_caller),
+) -> InterviewQuestionResponse:
+    """
+    부족한 기술을 확인하는 서로 다른 면접 질문 세 개를 만든다.
+
+    질문 개수와 id(q1~q3)는 LLM 에 맡기지 않고 붙인다. 백엔드는 세 개가 아니거나 id·질문이 겹치면 응답을 버린다.
+    """
+    logger.info(
+        "모의면접 질문 생성을 시작합니다. 직무=%s 현재 기술=%d 부족 기술=%d",
+        request.target_job,
+        len(request.current_skills),
+        len(request.gap_skills),
+    )
+
+    response = interview.generate(request)
+
+    logger.info("모의면접 질문 생성을 마쳤습니다. 질문=%d", len(response.questions))
     return response

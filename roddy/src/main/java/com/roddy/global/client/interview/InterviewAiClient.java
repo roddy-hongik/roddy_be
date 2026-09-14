@@ -1,14 +1,19 @@
 package com.roddy.global.client.interview;
 
+import com.roddy.global.apiPayload.code.GeneralErrorCode;
+import com.roddy.global.apiPayload.exception.GeneralException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
 
+@Slf4j
 @Component
 public class InterviewAiClient {
 
@@ -32,12 +37,18 @@ public class InterviewAiClient {
     }
 
     public InterviewAiResponse generate(InterviewAiRequest request) {
-        return restClient.post()
-                .uri("/internal/interview-questions")
-                .header(INTERNAL_SECRET_HEADER, internalSecret)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(request)
-                .retrieve()
-                .body(InterviewAiResponse.class);
+        try {
+            return restClient.post()
+                    .uri("/internal/interview-questions")
+                    .header(INTERNAL_SECRET_HEADER, internalSecret)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .body(InterviewAiResponse.class);
+        } catch (RestClientResponseException exception) {
+            // AI 서버가 오류로 답했다. 사용자의 요청 탓이 아니므로 잠시 쓸 수 없다고 답한다.
+            log.warn("모의면접 질문 생성 요청이 실패했습니다. status={}", exception.getStatusCode().value());
+            throw new GeneralException(GeneralErrorCode.SERVICE_UNAVAILABLE);
+        }
     }
 }
