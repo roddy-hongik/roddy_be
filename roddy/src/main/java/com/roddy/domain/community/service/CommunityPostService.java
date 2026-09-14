@@ -9,6 +9,7 @@ import com.roddy.domain.community.dto.request.CommunityPostSearchCondition;
 import com.roddy.domain.community.dto.request.CreateCommunityCommentRequest;
 import com.roddy.domain.community.dto.request.CreateCommunityPostRequest;
 import com.roddy.domain.community.dto.response.CommunityCommentResponse;
+import com.roddy.domain.community.dto.response.CommunityFilterOptionsResponse;
 import com.roddy.domain.community.dto.response.CommunityPostDetailResponse;
 import com.roddy.domain.community.dto.response.CommunityPostListItemResponse;
 import com.roddy.domain.community.dto.response.CommunityPostListResponse;
@@ -46,18 +47,23 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
 public class CommunityPostService {
 
+    /** 인터뷰 글의 기업·준비 기간을 비워 두면 들어가는 값. */
+    private static final String UNSPECIFIED = "미입력";
     private static final Set<String> ALLOWED_IMAGE_CONTENT_TYPES = Set.of("image/png", "image/jpeg");
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of("png", "jpg", "jpeg");
 
@@ -84,6 +90,39 @@ public class CommunityPostService {
                 posts.getTotalElements(),
                 posts.getTotalPages()
         );
+    }
+
+    /**
+     * 목록 필터의 기업·직무·기술 선택지. 불러온 페이지와 상관없이 전체 글에서 모은다.
+     *
+     * <p>postCategory 가 로드맵이나 인터뷰면 그 유형의 값만 모은다. 일반 글에는 이런 값이 없어 비어 있다.
+     */
+    @Transactional(readOnly = true)
+    public CommunityFilterOptionsResponse getFilterOptions(CommunityPostCategory postCategory) {
+        boolean includeRoadmap = postCategory == null || postCategory == CommunityPostCategory.ROADMAP;
+        boolean includeInterview = postCategory == null || postCategory == CommunityPostCategory.PASS_REVIEW_INTERVIEW;
+
+        return new CommunityFilterOptionsResponse(
+                toFilterOptions(
+                        includeRoadmap ? communityPostRepository.findRoadmapTargetCompanies() : List.of(),
+                        includeInterview ? communityPostRepository.findInterviewCompanies() : List.of()),
+                toFilterOptions(
+                        includeRoadmap ? communityPostRepository.findRoadmapTargetJobs() : List.of(),
+                        includeInterview ? communityPostRepository.findInterviewJobRoles() : List.of()),
+                toFilterOptions(
+                        includeRoadmap ? communityPostRepository.findRoadmapRecommendedSkills() : List.of(),
+                        includeInterview ? communityPostRepository.findInterviewTechStacks() : List.of()));
+    }
+
+    /** 앞뒤 공백을 걷어내고 겹치는 값을 합쳐 가나다순으로. 빈 값과, 작성할 때 비워 두면 들어가는 "미입력"은 선택지가 아니다. */
+    private List<String> toFilterOptions(List<String> first, List<String> second) {
+        return Stream.concat(first.stream(), second.stream())
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> !value.isEmpty() && !UNSPECIFIED.equals(value))
+                .distinct()
+                .sorted(Collator.getInstance(Locale.KOREAN))
+                .toList();
     }
 
     /**

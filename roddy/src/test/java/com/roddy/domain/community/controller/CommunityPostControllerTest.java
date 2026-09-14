@@ -728,6 +728,50 @@ class CommunityPostControllerTest {
                 .andExpect(jsonPath("$.isSuccess").value(false));
     }
 
+    @Test
+    void 필터_선택지는_페이지와_상관없이_전체_글에서_모은다() throws Exception {
+        User user = saveUser("filter-options@example.com", "선택지작성자");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.FINTECH, "토스 로드맵", "토스", "백엔드 개발자", "Redis");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.FINTECH, "토스 로드맵 둘", " 토스 ", "백엔드 개발자", "Redis");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "카카오 후기", "카카오", "프론트엔드 개발자", "React");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "회사 미입력 후기", null, "백엔드 개발자", "Kafka");
+        savePost(user, CommunityPostCategory.FREE, CommunityJobCategory.B2C, "일반 글", "네이버", "PM", "Figma");
+
+        mockMvc.perform(get("/api/community/posts/filter-options"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.companies.length()").value(2))
+                .andExpect(jsonPath("$.result.companies[0]").value("카카오"))
+                .andExpect(jsonPath("$.result.companies[1]").value("토스"))
+                .andExpect(jsonPath("$.result.jobRoles.length()").value(2))
+                .andExpect(jsonPath("$.result.jobRoles[0]").value("백엔드 개발자"))
+                .andExpect(jsonPath("$.result.jobRoles[1]").value("프론트엔드 개발자"))
+                .andExpect(jsonPath("$.result.techStacks.length()").value(3))
+                .andExpect(jsonPath("$.result.techStacks[0]").value("Kafka"))
+                .andExpect(jsonPath("$.result.techStacks[1]").value("React"))
+                .andExpect(jsonPath("$.result.techStacks[2]").value("Redis"));
+    }
+
+    @Test
+    void 필터_선택지를_게시글_유형으로_좁힌다() throws Exception {
+        User user = saveUser("filter-options-type@example.com", "유형작성자");
+        savePost(user, CommunityPostCategory.ROADMAP, CommunityJobCategory.FINTECH, "토스 로드맵", "토스", "백엔드 개발자", "Redis");
+        savePost(user, CommunityPostCategory.PASS_REVIEW_INTERVIEW, CommunityJobCategory.B2C, "카카오 후기", "카카오", "프론트엔드 개발자", "React");
+
+        mockMvc.perform(get("/api/community/posts/filter-options").param("postCategory", "ROADMAP"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.companies.length()").value(1))
+                .andExpect(jsonPath("$.result.companies[0]").value("토스"))
+                .andExpect(jsonPath("$.result.jobRoles[0]").value("백엔드 개발자"))
+                .andExpect(jsonPath("$.result.techStacks.length()").value(1))
+                .andExpect(jsonPath("$.result.techStacks[0]").value("Redis"));
+
+        mockMvc.perform(get("/api/community/posts/filter-options").param("postCategory", "FREE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.companies.length()").value(0))
+                .andExpect(jsonPath("$.result.jobRoles.length()").value(0))
+                .andExpect(jsonPath("$.result.techStacks.length()").value(0));
+    }
+
     private User saveUser(String email, String nickname) {
         return userRepository.save(
                 User.builder()

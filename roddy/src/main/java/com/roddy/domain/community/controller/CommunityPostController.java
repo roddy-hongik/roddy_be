@@ -4,11 +4,13 @@ import com.roddy.domain.community.dto.request.CommunityPostSearchCondition;
 import com.roddy.domain.community.dto.request.CreateCommunityCommentRequest;
 import com.roddy.domain.community.dto.request.CreateCommunityPostRequest;
 import com.roddy.domain.community.dto.response.CommunityCommentResponse;
+import com.roddy.domain.community.dto.response.CommunityFilterOptionsResponse;
 import com.roddy.domain.community.dto.response.CommunityPostDetailResponse;
 import com.roddy.domain.community.dto.response.CommunityPostListResponse;
 import com.roddy.domain.community.dto.response.CreateCommunityPostResponse;
 import com.roddy.domain.community.dto.response.ReportPostResponse;
 import com.roddy.domain.community.dto.response.TogglePostLikeResponse;
+import com.roddy.domain.community.enums.CommunityPostCategory;
 import com.roddy.domain.community.service.CommunityPostService;
 import com.roddy.global.apiPayload.ApiResponse;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
@@ -52,6 +54,21 @@ public class CommunityPostController {
         return ApiResponse.onSuccess(
                 "커뮤니티 게시글 목록을 조회했습니다.",
                 communityPostService.getPosts(condition, page, size, sort)
+        );
+    }
+
+    @GetMapping("/filter-options")
+    @Operation(
+            summary = "게시글 목록 필터 선택지",
+            description = "기업·직무·기술 선택지를 페이지와 상관없이 전체 글에서 모은다. "
+                    + "postCategory 가 ROADMAP 이나 PASS_REVIEW_INTERVIEW 면 그 유형의 값만"
+    )
+    public ApiResponse<CommunityFilterOptionsResponse> getFilterOptions(
+            @RequestParam(required = false) CommunityPostCategory postCategory
+    ) {
+        return ApiResponse.onSuccess(
+                "게시글 필터 선택지를 조회했습니다.",
+                communityPostService.getFilterOptions(postCategory)
         );
     }
 
