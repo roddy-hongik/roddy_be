@@ -1,5 +1,6 @@
 package com.roddy.domain.jobposting.service;
 
+import com.roddy.domain.graph.service.TechGraphService;
 import com.roddy.domain.jobposting.dto.IngestSummary;
 import com.roddy.domain.jobposting.entity.CrawlRun;
 import com.roddy.domain.jobposting.enums.CrawlRunStatus;
@@ -26,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class JobPostingCrawlServiceTest {
@@ -41,6 +43,9 @@ class JobPostingCrawlServiceTest {
 
     @Mock
     private CrawlRunRepository crawlRunRepository;
+
+    @Mock
+    private TechGraphService techGraphService;
 
     @InjectMocks
     private JobPostingCrawlService crawlService;
@@ -84,6 +89,7 @@ class JobPostingCrawlServiceTest {
         assertThat(runs.getFirst().getMessage()).contains("503");
         assertThat(runs.get(1).getStatus()).isEqualTo(CrawlRunStatus.SUCCESS);
         assertThat(runs.get(1).getCreatedCount()).isEqualTo(30);
+        verify(techGraphService).rebuildAfterCrawl();
     }
 
     @Test

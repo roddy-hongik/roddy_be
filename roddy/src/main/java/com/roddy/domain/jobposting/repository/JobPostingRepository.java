@@ -78,6 +78,10 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     @Query("select jp.id, stack from JobPosting jp join jp.techStacks stack where jp.id in :ids")
     List<Object[]> findTechStacksByIds(@Param("ids") Collection<Long> ids);
 
+    /** 상태별 공고 id → 요구 기술 쌍. 기술 그래프에서 함께 요구되는 기술을 셀 때 쓴다. */
+    @Query("select jp.id, stack from JobPosting jp join jp.techStacks stack where jp.status = :status")
+    List<Object[]> findTechStacksByStatus(@Param("status") JobPostingStatus status);
+
     /** 같은 희망 직무의 모집 중 공고에서 자주 요구하는 기술. 로드맵의 부족 기술 후보로 쓴다. */
     @Query("""
             select stack, count(jp)

@@ -58,6 +58,12 @@ public enum GeneralErrorCode implements BaseErrorCode {
     // 알림 에러
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION_4041", "알림을 찾을 수 없습니다."),
 
+    // 기술 그래프 에러
+    GRAPH_TECH_STACK_NOT_FOUND(HttpStatus.NOT_FOUND, "GRAPH_4041", "기술 그래프에 없는 기술입니다."),
+    GRAPH_EDGE_NOT_FOUND(HttpStatus.NOT_FOUND, "GRAPH_4042", "관계를 찾을 수 없습니다."),
+    GRAPH_EDGE_SELF_LOOP(HttpStatus.BAD_REQUEST, "GRAPH_4001", "같은 기술끼리는 관계를 만들 수 없습니다."),
+    GRAPH_EDGE_DUPLICATED(HttpStatus.CONFLICT, "GRAPH_4091", "이미 같은 관계가 있습니다."),
+
     // 스터디 에러
     STUDY_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4041", "스터디 모집글을 찾을 수 없습니다."),
     STUDY_APPLICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4042", "스터디 지원 내역을 찾을 수 없습니다."),

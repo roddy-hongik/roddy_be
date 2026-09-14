@@ -35,9 +35,14 @@ public class TechStackDictionary {
     private static final String BOUNDARY_AFTER = "(?![A-Za-z0-9])";
 
     private final List<Term> terms;
+    private final List<StackEntry> stacks;
 
     public TechStackDictionary() {
-        this.terms = loadTerms();
+        Dictionary dictionary = read();
+        this.terms = loadTerms(dictionary);
+        this.stacks = dictionary.stacks().stream()
+                .map(stack -> new StackEntry(stack.name(), stack.category()))
+                .toList();
     }
 
     /** 표기가 긴 것부터 정렬된 목록. 겹치는 표기를 가려내는 순서가 된다. */
@@ -45,9 +50,14 @@ public class TechStackDictionary {
         return terms;
     }
 
-    private List<Term> loadTerms() {
+    /** 사전에 실린 기술과 그 분류. 기술 그래프의 노드가 된다. */
+    public List<StackEntry> stacks() {
+        return stacks;
+    }
+
+    private List<Term> loadTerms(Dictionary dictionary) {
         List<Entry> entries = new ArrayList<>();
-        for (Stack stack : read().stacks()) {
+        for (Stack stack : dictionary.stacks()) {
             entries.add(new Entry(stack.name(), stack.name()));
             stack.aliases().forEach(alias -> entries.add(new Entry(stack.name(), alias)));
         }
@@ -79,6 +89,10 @@ public class TechStackDictionary {
     public record Term(String stackName, Pattern pattern) {
     }
 
+    /** 사전에 실린 기술 하나. category 는 기술 그래프에서 노드를 나누는 분류다. */
+    public record StackEntry(String name, String category) {
+    }
+
     private record Entry(String stackName, String text) {
     }
 
@@ -91,9 +105,10 @@ public class TechStackDictionary {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record Stack(String name, List<String> aliases) {
+    private record Stack(String name, String category, List<String> aliases) {
 
         private Stack {
+            category = category == null ? "etc" : category;
             aliases = aliases == null ? List.of() : List.copyOf(aliases);
         }
     }
