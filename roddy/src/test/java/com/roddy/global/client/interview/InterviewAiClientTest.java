@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -56,6 +57,20 @@ class InterviewAiClientTest {
         start(404, "{\"detail\":\"Not Found\"}");
 
         assertThatThrownBy(() -> client().generate(new InterviewAiRequest(
+                List.of(), List.of("Redis"), "백엔드 개발자", null)))
+                .isInstanceOfSatisfying(GeneralException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(GeneralErrorCode.SERVICE_UNAVAILABLE));
+    }
+
+    @Test
+    void AI_서버에_연결되지_않으면_서비스를_잠시_쓸_수_없다고_던진다() throws Exception {
+        int closedPort;
+        try (ServerSocket socket = new ServerSocket(0)) {
+            closedPort = socket.getLocalPort();
+        }
+        InterviewAiClient unreachable = new InterviewAiClient("http://localhost:" + closedPort, "secret");
+
+        assertThatThrownBy(() -> unreachable.generate(new InterviewAiRequest(
                 List.of(), List.of("Redis"), "백엔드 개발자", null)))
                 .isInstanceOfSatisfying(GeneralException.class,
                         exception -> assertThat(exception.getCode()).isEqualTo(GeneralErrorCode.SERVICE_UNAVAILABLE));
