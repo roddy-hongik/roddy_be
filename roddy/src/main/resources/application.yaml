@@ -1,6 +1,16 @@
 spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  # 기술 그래프 저장소. compose 에서는 서비스 이름(neo4j)으로 덮어쓴다.
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:}
+    # 그래프가 떠 있지 않아도 수집이나 어드민 요청이 오래 붙잡히지 않도록 짧게 기다린다.
+    connection-timeout: 5s
+    pool:
+      connection-acquisition-timeout: 5s
 
 
 app:

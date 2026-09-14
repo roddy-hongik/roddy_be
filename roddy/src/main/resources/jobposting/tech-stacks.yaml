@@ -1,6 +1,7 @@
 # 채용공고 본문에서 찾아낼 기술스택 사전.
 #
 # name    : 저장하고 화면에 보여줄 이름
+# category: 기술 그래프 노드의 분류 (language, backend, frontend, mobile, database, data, infra, collaboration)
 # aliases : 본문에 등장할 수 있는 다른 표기 (한글 표기, 줄임말, 옛 이름)
 #
 # 긴 표기부터 먼저 찾고 찾은 자리는 가려서, 짧은 표기가 겹쳐 잡히지 않게 한다.
@@ -8,166 +9,262 @@
 stacks:
   # 언어
   - name: Java
+    category: language
     aliases: [자바]
   - name: Kotlin
+    category: language
     aliases: [코틀린]
   - name: Python
+    category: language
     aliases: [파이썬]
   - name: JavaScript
+    category: language
     aliases: [자바스크립트, JS]
   - name: TypeScript
+    category: language
     aliases: [타입스크립트, TS]
   - name: Go
+    category: language
     aliases: [Golang, 고랭]
   - name: Rust
+    category: language
     aliases: [러스트]
   - name: Swift
+    category: language
     aliases: [스위프트]
   - name: Scala
+    category: language
     aliases: [스칼라]
   - name: Ruby
+    category: language
     aliases: [루비]
   - name: PHP
+    category: language
   - name: C++
+    category: language
     aliases: [CPP]
   - name: C#
+    category: language
     aliases: [C Sharp]
   - name: C
+    category: language
   - name: SQL
+    category: language
   - name: Shell
+    category: language
     aliases: [셸 스크립트, 쉘 스크립트]
 
   # 백엔드 프레임워크
   - name: Spring
+    category: backend
     aliases: [스프링]
   - name: Spring Boot
+    category: backend
     aliases: [스프링부트, 스프링 부트]
   - name: Spring Batch
+    category: backend
   - name: Spring Security
+    category: backend
   - name: JPA
+    category: backend
     aliases: [Hibernate, 하이버네이트]
   - name: MyBatis
+    category: backend
   - name: QueryDSL
+    category: backend
   - name: Node.js
+    category: backend
     aliases: [NodeJS, 노드js, 노드]
   - name: NestJS
+    category: backend
   - name: Express
+    category: backend
   - name: Django
+    category: backend
     aliases: [장고]
   - name: FastAPI
+    category: backend
   - name: Flask
+    category: backend
   - name: Ktor
+    category: backend
   - name: gRPC
+    category: backend
   - name: GraphQL
+    category: backend
 
   # 프론트엔드
   - name: React
+    category: frontend
     aliases: [리액트]
   - name: Next.js
+    category: frontend
     aliases: [NextJS, 넥스트js]
   - name: Vue
+    category: frontend
     aliases: [Vue.js, 뷰js]
   - name: Nuxt
+    category: frontend
   - name: Angular
+    category: frontend
     aliases: [앵귤러]
   - name: Svelte
+    category: frontend
   - name: Redux
+    category: frontend
   - name: Zustand
+    category: frontend
   - name: TanStack Query
+    category: frontend
     aliases: [React Query, 리액트 쿼리]
   - name: Webpack
+    category: frontend
   - name: Vite
+    category: frontend
   - name: Storybook
+    category: frontend
   - name: HTML
+    category: frontend
   - name: CSS
+    category: frontend
   - name: Tailwind CSS
+    category: frontend
     aliases: [TailwindCSS, Tailwind]
 
   # 모바일
   - name: Android
+    category: mobile
     aliases: [안드로이드]
   - name: iOS
+    category: mobile
   - name: SwiftUI
+    category: mobile
   - name: Jetpack Compose
+    category: mobile
     aliases: [Compose]
   - name: Flutter
+    category: mobile
     aliases: [플러터]
   - name: React Native
+    category: mobile
     aliases: [리액트 네이티브, RN]
 
   # 데이터베이스 / 저장소
   - name: MySQL
+    category: database
   - name: PostgreSQL
+    category: database
     aliases: [Postgres]
   - name: Oracle
+    category: database
     aliases: [오라클]
   - name: MongoDB
+    category: database
     aliases: [몽고DB]
   - name: Redis
+    category: database
     aliases: [레디스]
   - name: Elasticsearch
+    category: database
     aliases: [엘라스틱서치, ES]
   - name: Neo4j
+    category: database
   - name: DynamoDB
+    category: database
   - name: Cassandra
+    category: database
   - name: ClickHouse
+    category: database
 
   # 데이터 / 머신러닝
   - name: Kafka
+    category: data
     aliases: [카프카]
   - name: Spark
+    category: data
     aliases: [Apache Spark, 스파크]
   - name: Airflow
+    category: data
     aliases: [에어플로우]
   - name: Hadoop
+    category: data
     aliases: [하둡]
   - name: Flink
+    category: data
   - name: dbt
+    category: data
   - name: PyTorch
+    category: data
     aliases: [파이토치]
   - name: TensorFlow
+    category: data
     aliases: [텐서플로우, 텐서플로]
   - name: LLM
+    category: data
     aliases: [대규모 언어 모델]
   - name: Pandas
+    category: data
   - name: NumPy
+    category: data
 
   # 인프라 / 운영
   - name: AWS
+    category: infra
   - name: GCP
+    category: infra
     aliases: [Google Cloud]
   - name: Azure
+    category: infra
   - name: NCP
+    category: infra
     aliases: [네이버 클라우드]
   - name: Docker
+    category: infra
     aliases: [도커]
   - name: Kubernetes
+    category: infra
     aliases: [쿠버네티스, K8s]
   - name: Terraform
+    category: infra
     aliases: [테라폼]
   - name: Jenkins
+    category: infra
     aliases: [젠킨스]
   - name: ArgoCD
+    category: infra
   - name: GitHub Actions
+    category: infra
   - name: Nginx
+    category: infra
   - name: Kong
+    category: infra
   - name: Prometheus
+    category: infra
     aliases: [프로메테우스]
   - name: Grafana
+    category: infra
     aliases: [그라파나]
   - name: Datadog
+    category: infra
   - name: Linux
+    category: infra
     aliases: [리눅스]
 
   # 협업 / 방법론
   - name: Git
+    category: collaboration
     aliases: [깃]
   - name: Jira
+    category: collaboration
     aliases: [지라]
   - name: MSA
+    category: collaboration
     aliases: [마이크로서비스, Microservice]
   - name: CI/CD
+    category: collaboration
     aliases: [CICD]
   - name: DDD
+    category: collaboration
     aliases: [도메인 주도 설계]
   - name: TDD
+    category: collaboration
