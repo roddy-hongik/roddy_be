@@ -3,6 +3,4 @@
 docs/
 **/build/
 **/.gradle/
-roddy_ai/__pycache__/
-roddy_ai/.venv/
 .env
