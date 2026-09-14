@@ -1,7 +1,8 @@
 # 로디 백엔드를 한 번에 띄운다.
 #
-#   git clone https://github.com/roddy-hongik/roddy_ai.git ../roddy_ai   (AI 서버 코드. 처음 한 번)
+#   docker login ghcr.io   (AI 서버 이미지가 비공개라 처음 한 번. read:packages 권한 토큰으로 로그인)
 #   cp .env.example .env   (값을 채운 뒤)
+#   docker compose pull ai   (AI 서버 최신 이미지를 받는다)
 #   docker compose up --build
 #
 # AI 서버는 외부로 포트를 열지 않는다. 백엔드만 내부 네트워크로 부른다.
@@ -46,11 +47,10 @@ services:
       timeout: 10s
       retries: 30
 
-  # AI 서버 코드는 roddy-hongik/roddy_ai 레포가 원본이다. 비공개 레포라 git 주소 대신 받아 둔 클론으로 빌드한다.
-  # 기본은 이 레포 옆의 ../roddy_ai 이고, 다른 곳에 받았으면 RODDY_AI_PATH 로 경로를 준다. 빌드 전에 클론을 최신으로 당겨 둔다.
+  # AI 서버 코드는 roddy-hongik/roddy_ai 레포가 원본이다. 그 레포가 main 에 코드가 들어올 때마다 GHCR 에 올리는 이미지를 받아 띄운다.
+  # 특정 버전으로 고정하려면 RODDY_AI_IMAGE 에 sha-<커밋 7자리> 태그를 준다.
   ai:
-    build:
-      context: ${RODDY_AI_PATH:-../roddy_ai}
+    image: ${RODDY_AI_IMAGE:-ghcr.io/roddy-hongik/roddy_ai:latest}
     environment:
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
