@@ -40,9 +40,10 @@ public class UserDetailsImpl implements UserDetails {
         return true;
     }
 
+    /** 어드민이 정지한 계정은 잠긴 계정으로 본다. */
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return !user.isSuspended();
     }
 
     @Override
