@@ -1,5 +1,6 @@
 package com.roddy.domain.jobposting.service;
 
+import com.roddy.domain.graph.service.TechGraphService;
 import com.roddy.domain.jobposting.dto.IngestSummary;
 import com.roddy.domain.jobposting.entity.CrawlRun;
 import com.roddy.domain.jobposting.repository.CrawlRunRepository;
@@ -30,6 +31,7 @@ public class JobPostingCrawlService {
     private final DeclarativeCrawler crawler;
     private final JobPostingIngestService ingestService;
     private final CrawlRunRepository crawlRunRepository;
+    private final TechGraphService techGraphService;
 
     /** 명세에 있는 회사를 순서대로 수집한다. 사이트에 부담을 주지 않도록 동시에 돌리지 않는다. */
     public List<CrawlRun> crawlAll() {
@@ -43,6 +45,9 @@ public class JobPostingCrawlService {
 
         long succeeded = runs.stream().filter(CrawlRun::isSuccess).count();
         log.info("채용공고 수집을 마쳤습니다. 성공 {}/{}곳", succeeded, runs.size());
+
+        // 모집 중인 공고가 바뀌었으니 함께 요구되는 기술 관계도 다시 계산한다.
+        techGraphService.rebuildAfterCrawl();
         return runs;
     }
 
