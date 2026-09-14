@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -48,6 +49,10 @@ public class InterviewAiClient {
         } catch (RestClientResponseException exception) {
             // AI 서버가 오류로 답했다. 사용자의 요청 탓이 아니므로 잠시 쓸 수 없다고 답한다.
             log.warn("모의면접 질문 생성 요청이 실패했습니다. status={}", exception.getStatusCode().value());
+            throw new GeneralException(GeneralErrorCode.SERVICE_UNAVAILABLE);
+        } catch (ResourceAccessException exception) {
+            // 연결이 안 되거나 제시간에 답하지 않았다. AI 서버 장애이므로 이것도 잠시 쓸 수 없다고 답한다.
+            log.warn("모의면접 질문 생성 요청에 AI 서버가 응답하지 않았습니다. {}", exception.getMessage());
             throw new GeneralException(GeneralErrorCode.SERVICE_UNAVAILABLE);
         }
     }

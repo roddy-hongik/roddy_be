@@ -57,18 +57,23 @@ def _response_schema() -> dict:
     LLM 이 돌려줄 모양. 질문을 배열이 아니라 q1~q3 속성으로 받는다.
 
     배열로 받으면 질문이 모자라거나 넘쳐도 막을 수 없다. 속성으로 받으면 strict 모드가 세 질문을 모두 요구한다.
+
+    빈 질문·빈 의도·빈 핵심 포인트도 스키마에서 막는다. 백엔드는 빈 값이 섞인 응답을 통째로 버리므로,
+    LLM 이 빈 값을 내면 호출은 성공하고도 사용자는 실패를 보게 된다.
     """
+    non_blank = {"type": "string", "pattern": r"\S"}
     question = {
         "type": "object",
         "additionalProperties": False,
         "required": ["question", "intent", "key_points"],
         "properties": {
-            "question": {"type": "string", "description": "면접 질문. 한 문장"},
-            "intent": {"type": "string", "description": "이 질문으로 확인하려는 것"},
+            "question": dict(non_blank, description="면접 질문. 한 문장"),
+            "intent": dict(non_blank, description="이 질문으로 확인하려는 것"),
             "key_points": {
                 "type": "array",
                 "description": "좋은 답변에 들어가야 할 핵심 포인트",
-                "items": {"type": "string"},
+                "minItems": 1,
+                "items": non_blank,
             },
         },
     }
