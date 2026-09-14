@@ -182,6 +182,16 @@ curl -X POST http://localhost:8000/internal/analyses \
   -d '{"user_id": 1, "github_url": "https://github.com/octocat"}'
 ```
 
+## 테스트
+
+LLM 은 부르지 않는다. OpenAI 호출을 가짜로 바꿔 스키마와 응답 조립만 확인한다.
+
+```bash
+cd roddy_ai
+pip install -r requirements-dev.txt
+python -m unittest discover -s tests -t .
+```
+
 ## 아직 안 한 것
 
 - **깃허브 코드 내용은 읽지 않는다.** 저장소 이름·설명·언어 구성·토픽까지만 본다. 코드를 읽으려면

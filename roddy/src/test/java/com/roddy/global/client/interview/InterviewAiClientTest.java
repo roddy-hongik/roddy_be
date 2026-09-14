@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -64,11 +63,8 @@ class InterviewAiClientTest {
 
     @Test
     void AI_서버에_연결되지_않으면_서비스를_잠시_쓸_수_없다고_던진다() throws Exception {
-        int closedPort;
-        try (ServerSocket socket = new ServerSocket(0)) {
-            closedPort = socket.getLocalPort();
-        }
-        InterviewAiClient unreachable = new InterviewAiClient("http://localhost:" + closedPort, "secret");
+        // 0번 포트에는 연결할 수 없다. 잠깐 열었다 닫은 포트는 그 사이 다른 프로세스가 잡을 수 있어 쓰지 않는다.
+        InterviewAiClient unreachable = new InterviewAiClient("http://localhost:0", "secret");
 
         assertThatThrownBy(() -> unreachable.generate(new InterviewAiRequest(
                 List.of(), List.of("Redis"), "백엔드 개발자", null)))

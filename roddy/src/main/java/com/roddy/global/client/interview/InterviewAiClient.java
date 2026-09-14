@@ -52,7 +52,7 @@ public class InterviewAiClient {
             throw new GeneralException(GeneralErrorCode.SERVICE_UNAVAILABLE);
         } catch (ResourceAccessException exception) {
             // 연결이 안 되거나 제시간에 답하지 않았다. AI 서버 장애이므로 이것도 잠시 쓸 수 없다고 답한다.
-            log.warn("모의면접 질문 생성 요청에 AI 서버가 응답하지 않았습니다. {}", exception.getMessage());
+            log.warn("모의면접 질문 생성 요청에 AI 서버가 응답하지 않았습니다.", exception);
             throw new GeneralException(GeneralErrorCode.SERVICE_UNAVAILABLE);
         }
     }
