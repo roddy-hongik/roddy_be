@@ -6,6 +6,7 @@ import com.roddy.domain.auth.service.SocialAuthService;
 import com.roddy.domain.community.entity.CommunityComment;
 import com.roddy.domain.community.entity.CommunityCommentReport;
 import com.roddy.domain.community.entity.CommunityPost;
+import com.roddy.domain.community.entity.CommunityPostImage;
 import com.roddy.domain.community.entity.CommunityPostLike;
 import com.roddy.domain.community.entity.CommunityPostReport;
 import com.roddy.domain.community.enums.CommunityJobCategory;
@@ -34,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -111,6 +113,9 @@ class AdminReportedContentControllerTest {
     @Test
     void 신고된_글을_지우면_댓글과_좋아요와_신고도_함께_지운다() throws Exception {
         CommunityPost post = savePost("지울 글");
+        String imageUrl = "https://s3.amazonaws.com/test/community/deleted-image.png";
+        post.addImage(CommunityPostImage.create(post, imageUrl, "deleted-image.png"));
+        communityPostRepository.saveAndFlush(post);
         reportPost(post, reporter);
         CommunityComment root = saveComment(post, "댓글", null);
         CommunityComment reply = saveComment(post, "대댓글", root);
@@ -129,6 +134,7 @@ class AdminReportedContentControllerTest {
         assertThat(communityPostReportRepository.count()).isZero();
         assertThat(communityCommentReportRepository.count()).isZero();
         assertThat(communityPostLikeRepository.count()).isZero();
+        verify(s3Uploader).deleteFile(imageUrl);
     }
 
     @Test

@@ -9,9 +9,14 @@ import com.roddy.domain.community.repository.CommunityPostReportRepository;
 import com.roddy.domain.community.repository.CommunityPostRepository;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
 import com.roddy.global.apiPayload.exception.GeneralException;
+import com.roddy.global.config.s3.S3Uploader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import java.util.List;
 
 /**
  * 커뮤니티 글과 댓글을 딸린 데이터와 함께 지운다.
@@ -28,11 +33,16 @@ public class CommunityContentRemover {
     private final CommunityPostReportRepository communityPostReportRepository;
     private final CommunityCommentReportRepository communityCommentReportRepository;
     private final CommunityPostLikeRepository communityPostLikeRepository;
+    private final S3Uploader s3Uploader;
 
     @Transactional
     public void removePost(Long postId) {
         CommunityPost post = communityPostRepository.findById(postId)
                 .orElseThrow(() -> new GeneralException(GeneralErrorCode.COMMUNITY_POST_NOT_FOUND));
+        List<String> imageUrls = post.getImages().stream()
+                .map(image -> image.getImageUrl())
+                .distinct()
+                .toList();
 
         communityCommentReportRepository.deleteAllByPostId(postId);
         communityCommentRepository.deleteRepliesByPostId(postId);
@@ -40,6 +50,7 @@ public class CommunityContentRemover {
         communityPostReportRepository.deleteAllByPostId(postId);
         communityPostLikeRepository.deleteAllByPostId(postId);
         communityPostRepository.delete(post);
+        deleteImagesAfterCommit(imageUrls);
     }
 
     /** 대댓글도 함께 지운다. 대댓글은 댓글에 묶여 있어 댓글을 지우면 따라 지워진다. */
@@ -50,5 +61,19 @@ public class CommunityContentRemover {
 
         communityCommentReportRepository.deleteAllByCommentIdWithReplies(commentId);
         communityCommentRepository.delete(comment);
+    }
+
+    /** DB 삭제가 확정된 뒤에만 외부 저장소 파일을 지운다. */
+    private void deleteImagesAfterCommit(List<String> imageUrls) {
+        if (imageUrls.isEmpty()) {
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                imageUrls.forEach(s3Uploader::deleteFile);
+            }
+        });
     }
 }
