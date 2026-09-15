@@ -162,7 +162,7 @@ public class CommunityPostService {
         CommunityPost post = getPostOrThrow(postId);
         post.increaseViewCount();
 
-        List<CommunityCommentResponse> comments = getComments(postId);
+        List<CommunityCommentResponse> comments = getComments(postId, currentUserId);
 
         boolean liked = currentUserId != null && communityPostLikeRepository.existsByPost_IdAndUser_Id(postId, currentUserId);
 
@@ -288,15 +288,15 @@ public class CommunityPostService {
                 CommunityComment.create(post, author, request.content().trim(), parentComment)
         );
 
-        return toCommentResponse(comment);
+        return toCommentResponse(comment, userId);
     }
 
     @Transactional(readOnly = true)
-    public List<CommunityCommentResponse> getComments(Long postId) {
+    public List<CommunityCommentResponse> getComments(Long postId, Long currentUserId) {
         getPostOrThrow(postId);
         return communityCommentRepository.findAllByPostIdOrderByThread(postId)
                 .stream()
-                .map(this::toCommentResponse)
+                .map(comment -> toCommentResponse(comment, currentUserId))
                 .toList();
     }
 
@@ -306,6 +306,8 @@ public class CommunityPostService {
         if (!comment.isAuthor(userId)) {
             throw new GeneralException(GeneralErrorCode.COMMUNITY_COMMENT_DELETE_FORBIDDEN);
         }
+        // 신고는 댓글을 외래 키로 참조한다. 대댓글 신고까지 먼저 지워야 부모 댓글 연쇄 삭제도 안전하다.
+        communityCommentReportRepository.deleteAllByCommentIdWithReplies(commentId);
         communityCommentRepository.delete(comment);
     }
 
@@ -381,14 +383,15 @@ public class CommunityPostService {
         );
     }
 
-    private CommunityCommentResponse toCommentResponse(CommunityComment comment) {
+    private CommunityCommentResponse toCommentResponse(CommunityComment comment, Long currentUserId) {
         return new CommunityCommentResponse(
                 comment.getId(),
                 comment.getAuthor().getNickname(),
                 comment.getContent(),
                 comment.getParentComment() == null ? null : comment.getParentComment().getId(),
                 comment.getDepth(),
-                comment.getCreatedAt()
+                comment.getCreatedAt(),
+                currentUserId != null && comment.isAuthor(currentUserId)
         );
     }
 

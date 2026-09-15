@@ -104,11 +104,13 @@ public class CommunityPostController {
     @GetMapping("/{postId}/comments")
     @Operation(summary = "댓글 목록 조회")
     public ApiResponse<java.util.List<CommunityCommentResponse>> getComments(
-            @PathVariable Long postId
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
+        Long userId = userDetails == null ? null : userDetails.getUser().getId();
         return ApiResponse.onSuccess(
                 "댓글 목록을 조회했습니다.",
-                communityPostService.getComments(postId)
+                communityPostService.getComments(postId, userId)
         );
     }
 

@@ -638,9 +638,16 @@ class CommunityPostControllerTest {
                 .andExpect(jsonPath("$.result.length()").value(2))
                 .andExpect(jsonPath("$.result[0].content").value("첫 댓글"))
                 .andExpect(jsonPath("$.result[0].depth").value(0))
+                .andExpect(jsonPath("$.result[0].mine").value(false))
                 .andExpect(jsonPath("$.result[1].content").value("첫 댓글의 답글"))
                 .andExpect(jsonPath("$.result[1].depth").value(1))
                 .andExpect(jsonPath("$.result[1].parentId").value(rootCommentId));
+
+        mockMvc.perform(get("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result[0].mine").value(true))
+                .andExpect(jsonPath("$.result[1].mine").value(true));
     }
 
     @Test
@@ -666,6 +673,44 @@ class CommunityPostControllerTest {
         mockMvc.perform(get("/api/community/posts/{postId}/comments", post.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.length()").value(0));
+    }
+
+    @Test
+    void 신고된_대댓글이_있는_본인_댓글도_삭제된다() throws Exception {
+        User writer = saveUser("reported-thread-owner@example.com", "댓글주인");
+        User replyWriter = saveUser("reported-thread-reply@example.com", "답글작성자");
+        User reporter = saveUser("reported-thread-reporter@example.com", "신고자");
+        CommunityPost post = savePost(writer, CommunityPostCategory.FREE, CommunityJobCategory.B2B, "신고 댓글 삭제 글", null, null, "Java");
+
+        String rootResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(writer)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("신고된 댓글", null))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        Long rootId = extractResultId(rootResponse);
+
+        String replyResponse = mockMvc.perform(post("/api/community/posts/{postId}/comments", post.getId())
+                        .with(user(new UserDetailsImpl(replyWriter)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new CommentRequest("신고된 답글", rootId))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        Long replyId = extractResultId(replyResponse);
+
+        mockMvc.perform(post("/api/community/comments/{commentId}/report", rootId)
+                        .with(user(new UserDetailsImpl(reporter))))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/community/comments/{commentId}/report", replyId)
+                        .with(user(new UserDetailsImpl(reporter))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/api/community/comments/{commentId}", rootId)
+                        .with(user(new UserDetailsImpl(writer))))
+                .andExpect(status().isOk());
+
+        org.assertj.core.api.Assertions.assertThat(communityCommentRepository.findAll()).isEmpty();
+        org.assertj.core.api.Assertions.assertThat(communityCommentReportRepository.findAll()).isEmpty();
     }
 
     @Test
