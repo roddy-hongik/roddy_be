@@ -49,6 +49,10 @@ public enum GeneralErrorCode implements BaseErrorCode {
     // 역량 분석 에러
     ANALYSIS_REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "ANALYSIS_4041", "분석 리포트를 찾을 수 없습니다."),
 
+    // 자기소개서 에러
+    COVER_LETTER_NOT_FOUND(HttpStatus.NOT_FOUND, "COVER_LETTER_4041", "자기소개서를 찾을 수 없습니다."),
+    COVER_LETTER_CONFLICT(HttpStatus.CONFLICT, "COVER_LETTER_4091", "다른 창에서 문서가 변경되었습니다. 작성 내용을 복사한 뒤 최신 문서를 다시 열어주세요."),
+
     // 로드맵 에러
     ROADMAP_GAP_EMPTY(HttpStatus.BAD_REQUEST, "ROADMAP_4001", "부족 기술이 없어 로드맵을 생성할 수 없습니다."),
 
