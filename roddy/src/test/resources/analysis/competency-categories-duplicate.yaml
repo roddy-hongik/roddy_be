@@ -1,0 +1,8 @@
+jobs:
+  BACKEND:
+    - code: ARCHITECTURE
+      name: 아키텍처
+      description: 설명
+    - code: ARCHITECTURE
+      name: 같은 code 를 한 번 더 적었다
+      description: 설명

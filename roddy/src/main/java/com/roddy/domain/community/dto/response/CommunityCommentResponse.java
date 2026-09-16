@@ -8,6 +8,7 @@ public record CommunityCommentResponse(
         String content,
         Long parentId,
         int depth,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        boolean mine
 ) {
 }

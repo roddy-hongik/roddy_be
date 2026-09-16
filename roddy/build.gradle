@@ -26,7 +26,8 @@ repositories {
 
 ext {
 	set('springCloudVersion', "2025.1.0")
-	set('springCloudAwsVersion', "3.4.2")
+	// 3.x 는 Boot 3 용이라 Boot 4 에서 S3 자동 설정이 없어진 메서드를 불러 기동이 멈춘다.
+	set('springCloudAwsVersion', "4.0.2")
 }
 
 dependencies {
@@ -43,6 +44,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	// Boot 4 부터 WebClient.Builder 자동 설정이 webflux 스타터에서 빠졌다. SocialAuthService 가 이 빈을 받는다.
+	implementation 'org.springframework.boot:spring-boot-starter-webclient'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
@@ -54,6 +57,10 @@ dependencies {
 
 	// openai
 	implementation 'com.openai:openai-java:4.35.0'
+
+	// 수집 명세(YAML) 파싱
+	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml'
+	implementation 'org.jsoup:jsoup:1.18.3'
 
 	//S3
 	implementation "io.awspring.cloud:spring-cloud-aws-starter-s3:${springCloudAwsVersion}"
@@ -70,6 +77,10 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-batch-test'
 	testImplementation 'org.springframework.security:spring-security-test'
+	// 그래프 저장소(Neo4j)를 실제로 띄워 확인한다. Docker 가 없으면 그 테스트만 건너뛴다.
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+	testImplementation 'org.testcontainers:testcontainers-neo4j'
 	testCompileOnly 'org.projectlombok:lombok'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

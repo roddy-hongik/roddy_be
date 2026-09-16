@@ -9,6 +9,7 @@ import com.roddy.domain.community.dto.request.CommunityPostSearchCondition;
 import com.roddy.domain.community.dto.request.CreateCommunityCommentRequest;
 import com.roddy.domain.community.dto.request.CreateCommunityPostRequest;
 import com.roddy.domain.community.dto.response.CommunityCommentResponse;
+import com.roddy.domain.community.dto.response.CommunityFilterOptionsResponse;
 import com.roddy.domain.community.dto.response.CommunityPostDetailResponse;
 import com.roddy.domain.community.dto.response.CommunityPostListItemResponse;
 import com.roddy.domain.community.dto.response.CommunityPostListResponse;
@@ -46,17 +47,23 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
 public class CommunityPostService {
 
+    /** 인터뷰 글의 기업·준비 기간을 비워 두면 들어가는 값. */
+    private static final String UNSPECIFIED = "미입력";
     private static final Set<String> ALLOWED_IMAGE_CONTENT_TYPES = Set.of("image/png", "image/jpeg");
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of("png", "jpg", "jpeg");
 
@@ -85,12 +92,77 @@ public class CommunityPostService {
         );
     }
 
+    /**
+     * 목록 필터의 기업·직무·기술 선택지. 불러온 페이지와 상관없이 전체 글에서 모은다.
+     *
+     * <p>postCategory 가 로드맵이나 인터뷰면 그 유형의 값만 모은다. 일반 글에는 이런 값이 없어 비어 있다.
+     */
+    @Transactional(readOnly = true)
+    public CommunityFilterOptionsResponse getFilterOptions(CommunityPostCategory postCategory) {
+        boolean includeRoadmap = postCategory == null || postCategory == CommunityPostCategory.ROADMAP;
+        boolean includeInterview = postCategory == null || postCategory == CommunityPostCategory.PASS_REVIEW_INTERVIEW;
+
+        return new CommunityFilterOptionsResponse(
+                toFilterOptions(
+                        includeRoadmap ? communityPostRepository.findRoadmapTargetCompanies() : List.of(),
+                        includeInterview ? communityPostRepository.findInterviewCompanies() : List.of()),
+                toFilterOptions(
+                        includeRoadmap ? communityPostRepository.findRoadmapTargetJobs() : List.of(),
+                        includeInterview ? communityPostRepository.findInterviewJobRoles() : List.of()),
+                toFilterOptions(
+                        includeRoadmap ? communityPostRepository.findRoadmapRecommendedSkills() : List.of(),
+                        includeInterview ? communityPostRepository.findInterviewTechStacks() : List.of()));
+    }
+
+    /** 앞뒤 공백을 걷어내고 겹치는 값을 합쳐 가나다순으로. 빈 값과, 작성할 때 비워 두면 들어가는 "미입력"은 선택지가 아니다. */
+    private List<String> toFilterOptions(List<String> first, List<String> second) {
+        return Stream.concat(first.stream(), second.stream())
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> !value.isEmpty() && !UNSPECIFIED.equals(value))
+                .distinct()
+                .sorted(Collator.getInstance(Locale.KOREAN))
+                .toList();
+    }
+
+    /**
+     * 내가 좋아요한 글. 좋아요를 누른 최신순이다.
+     *
+     * <p>응답은 게시글 목록과 같은 모양이다. 프론트가 목록 카드를 그대로 쓸 수 있다.
+     */
+    @Transactional(readOnly = true)
+    public CommunityPostListResponse getLikedPosts(Long userId, int page, int size) {
+        Page<Long> likedPostIds = communityPostLikeRepository.findLikedPostIds(userId, PageRequest.of(page, size));
+        List<Long> ids = likedPostIds.getContent();
+
+        List<CommunityPost> posts = ids.isEmpty()
+                ? new ArrayList<>()
+                : new ArrayList<>(communityPostRepository.findAllWithAuthorAndTechStacksByIds(ids));
+        // in 절은 순서를 지켜 주지 않는다. 좋아요를 누른 순서대로 다시 놓는다.
+        posts.sort((left, right) -> Integer.compare(ids.indexOf(left.getId()), ids.indexOf(right.getId())));
+        Map<Long, Long> commentCounts = communityCommentRepository.countByPostIds(ids).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        CommunityCommentRepository.PostCommentCount::getPostId,
+                        CommunityCommentRepository.PostCommentCount::getCommentCount
+                ));
+
+        return new CommunityPostListResponse(
+                posts.stream()
+                        .map(post -> toListItemResponse(post, Math.toIntExact(commentCounts.getOrDefault(post.getId(), 0L))))
+                        .toList(),
+                likedPostIds.getNumber(),
+                likedPostIds.getSize(),
+                likedPostIds.getTotalElements(),
+                likedPostIds.getTotalPages()
+        );
+    }
+
     @Transactional
     public CommunityPostDetailResponse getPost(Long postId, Long currentUserId) {
         CommunityPost post = getPostOrThrow(postId);
         post.increaseViewCount();
 
-        List<CommunityCommentResponse> comments = getComments(postId);
+        List<CommunityCommentResponse> comments = getComments(postId, currentUserId);
 
         boolean liked = currentUserId != null && communityPostLikeRepository.existsByPost_IdAndUser_Id(postId, currentUserId);
 
@@ -216,15 +288,15 @@ public class CommunityPostService {
                 CommunityComment.create(post, author, request.content().trim(), parentComment)
         );
 
-        return toCommentResponse(comment);
+        return toCommentResponse(comment, userId);
     }
 
     @Transactional(readOnly = true)
-    public List<CommunityCommentResponse> getComments(Long postId) {
+    public List<CommunityCommentResponse> getComments(Long postId, Long currentUserId) {
         getPostOrThrow(postId);
         return communityCommentRepository.findAllByPostIdOrderByThread(postId)
                 .stream()
-                .map(this::toCommentResponse)
+                .map(comment -> toCommentResponse(comment, currentUserId))
                 .toList();
     }
 
@@ -234,6 +306,8 @@ public class CommunityPostService {
         if (!comment.isAuthor(userId)) {
             throw new GeneralException(GeneralErrorCode.COMMUNITY_COMMENT_DELETE_FORBIDDEN);
         }
+        // 신고는 댓글을 외래 키로 참조한다. 대댓글 신고까지 먼저 지워야 부모 댓글 연쇄 삭제도 안전하다.
+        communityCommentReportRepository.deleteAllByCommentIdWithReplies(commentId);
         communityCommentRepository.delete(comment);
     }
 
@@ -271,6 +345,10 @@ public class CommunityPostService {
     }
 
     private CommunityPostListItemResponse toListItemResponse(CommunityPost post) {
+        return toListItemResponse(post, getCommentCount(post.getId()));
+    }
+
+    private CommunityPostListItemResponse toListItemResponse(CommunityPost post, int commentCount) {
         return new CommunityPostListItemResponse(
                 post.getId(),
                 toPostType(post),
@@ -281,7 +359,7 @@ public class CommunityPostService {
                 post.getCreatedAt(),
                 post.getViewCount(),
                 post.getLikeCount(),
-                getCommentCount(post.getId()),
+                commentCount,
                 createExcerpt(post.getContent()),
                 post.getContent(),
                 extractRoadmapId(post),
@@ -305,14 +383,15 @@ public class CommunityPostService {
         );
     }
 
-    private CommunityCommentResponse toCommentResponse(CommunityComment comment) {
+    private CommunityCommentResponse toCommentResponse(CommunityComment comment, Long currentUserId) {
         return new CommunityCommentResponse(
                 comment.getId(),
                 comment.getAuthor().getNickname(),
                 comment.getContent(),
                 comment.getParentComment() == null ? null : comment.getParentComment().getId(),
                 comment.getDepth(),
-                comment.getCreatedAt()
+                comment.getCreatedAt(),
+                currentUserId != null && comment.isAuthor(currentUserId)
         );
     }
 

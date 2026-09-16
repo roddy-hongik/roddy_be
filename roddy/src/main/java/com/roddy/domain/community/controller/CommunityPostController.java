@@ -4,11 +4,13 @@ import com.roddy.domain.community.dto.request.CommunityPostSearchCondition;
 import com.roddy.domain.community.dto.request.CreateCommunityCommentRequest;
 import com.roddy.domain.community.dto.request.CreateCommunityPostRequest;
 import com.roddy.domain.community.dto.response.CommunityCommentResponse;
+import com.roddy.domain.community.dto.response.CommunityFilterOptionsResponse;
 import com.roddy.domain.community.dto.response.CommunityPostDetailResponse;
 import com.roddy.domain.community.dto.response.CommunityPostListResponse;
 import com.roddy.domain.community.dto.response.CreateCommunityPostResponse;
 import com.roddy.domain.community.dto.response.ReportPostResponse;
 import com.roddy.domain.community.dto.response.TogglePostLikeResponse;
+import com.roddy.domain.community.enums.CommunityPostCategory;
 import com.roddy.domain.community.service.CommunityPostService;
 import com.roddy.global.apiPayload.ApiResponse;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
@@ -55,6 +57,37 @@ public class CommunityPostController {
         );
     }
 
+    @GetMapping("/filter-options")
+    @Operation(
+            summary = "게시글 목록 필터 선택지",
+            description = "기업·직무·기술 선택지를 페이지와 상관없이 전체 글에서 모은다. "
+                    + "postCategory 가 ROADMAP 이나 PASS_REVIEW_INTERVIEW 면 그 유형의 값만"
+    )
+    public ApiResponse<CommunityFilterOptionsResponse> getFilterOptions(
+            @RequestParam(required = false) CommunityPostCategory postCategory
+    ) {
+        return ApiResponse.onSuccess(
+                "게시글 필터 선택지를 조회했습니다.",
+                communityPostService.getFilterOptions(postCategory)
+        );
+    }
+
+    @GetMapping("/likes/me")
+    @Operation(
+            summary = "내가 좋아요한 게시글 목록",
+            description = "좋아요를 누른 최신순. 응답은 게시글 목록과 같은 모양이다."
+    )
+    public ApiResponse<CommunityPostListResponse> getLikedPosts(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+    ) {
+        return ApiResponse.onSuccess(
+                "좋아요한 게시글 목록을 조회했습니다.",
+                communityPostService.getLikedPosts(requireUser(userDetails), page, size)
+        );
+    }
+
     @GetMapping("/{postId}")
     @Operation(summary = "커뮤니티 게시글 상세 조회")
     public ApiResponse<CommunityPostDetailResponse> getPost(
@@ -71,11 +104,13 @@ public class CommunityPostController {
     @GetMapping("/{postId}/comments")
     @Operation(summary = "댓글 목록 조회")
     public ApiResponse<java.util.List<CommunityCommentResponse>> getComments(
-            @PathVariable Long postId
+            @PathVariable Long postId,
+            @AuthenticationPrincipal UserDetailsImpl userDetails
     ) {
+        Long userId = userDetails == null ? null : userDetails.getUser().getId();
         return ApiResponse.onSuccess(
                 "댓글 목록을 조회했습니다.",
-                communityPostService.getComments(postId)
+                communityPostService.getComments(postId, userId)
         );
     }
 

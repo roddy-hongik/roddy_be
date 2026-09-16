@@ -6,6 +6,7 @@ import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.enums.ExperienceLevel;
 import com.roddy.domain.enums.Role;
 import com.roddy.domain.enums.SocialType;
+import com.roddy.global.crypto.EncryptedStringConverter;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.AccessLevel;
@@ -55,14 +56,26 @@ public class User extends BaseEntity {
 
     private int age;
 
-    private String profileImageUrl;
+    /**
+     * 프로필 이미지의 S3 객체 키.
+     *
+     * <p>포트폴리오와 같이 주소가 아니라 키를 저장한다. presigned 주소는 몇 분 뒤 만료되므로 볼 때마다 키로
+     * 새 주소를 만든다.
+     */
+    private String profileImageObjectKey;
 
     @Enumerated(EnumType.STRING)
     private ExperienceLevel experienceYears;
 
     private String socialId;
 
-    private String portfolioUrl;
+    /**
+     * 포트폴리오 파일의 S3 객체 키.
+     *
+     * <p>예전에는 presigned 주소를 그대로 저장했는데, 그 주소는 몇 분 뒤 만료된다. 볼 때마다 키로
+     * 새 주소를 만들어야 한다.
+     */
+    private String portfolioObjectKey;
 
     private String portfolioFileName;
 
@@ -70,6 +83,16 @@ public class User extends BaseEntity {
 
     private String githubId;
     private String githubUrl;
+
+    /**
+     * 깃허브 액세스 토큰. 저장할 때 암호화된다.
+     *
+     * <p>토큰 없이 깃허브 공개 API 를 부르면 IP 당 시간당 60회로 묶여 역량 분석이 사실상 돌지 않는다.
+     * 사용자 토큰으로 부르면 사용자마다 5000회가 된다.
+     */
+    @Convert(converter = EncryptedStringConverter.class)
+    @Column(length = 512)
+    private String githubAccessToken;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -80,6 +103,12 @@ public class User extends BaseEntity {
     private boolean githubConnected;
 
     private LocalDateTime deletedAt;
+
+    /** 어드민이 정지한 시각. 비어 있으면 정상 계정이다. 정지된 계정은 로그인하거나 토큰으로 인증할 수 없다. */
+    private LocalDateTime suspendedAt;
+
+    /** 마지막으로 토큰을 받은 시각(로그인·재발급). 어드민 화면의 최근 활동일로 쓴다. */
+    private LocalDateTime lastLoginAt;
 
     // 희망 직무
     @Enumerated(EnumType.STRING)
@@ -129,10 +158,19 @@ public class User extends BaseEntity {
                 .build();
     }
 
-    public void connectGithub(String githubId, String githubUrl) {
+    public void connectGithub(String githubId, String githubUrl, String accessToken) {
         this.githubId = githubId;
         this.githubUrl = githubUrl;
+        this.githubAccessToken = accessToken;
         this.githubConnected = true;
+    }
+
+    /** 연결을 끊으면 토큰을 지운다. 쓰지 않는 토큰을 들고 있을 이유가 없다. */
+    public void disconnectGithub() {
+        this.githubId = null;
+        this.githubUrl = null;
+        this.githubAccessToken = null;
+        this.githubConnected = false;
     }
 
     public void completeProfile(
@@ -140,7 +178,7 @@ public class User extends BaseEntity {
             int age,
             ExperienceLevel experienceYears,
             DesiredJob desiredJob,
-            String portfolioUrl,
+            String portfolioObjectKey,
             String portfolioFileName,
             LocalDateTime portfolioUploadedAt
     ) {
@@ -149,19 +187,26 @@ public class User extends BaseEntity {
         this.age = age;
         this.experienceYears = experienceYears;
         this.desiredJob = desiredJob;
-        this.portfolioUrl = portfolioUrl;
+        this.portfolioObjectKey = portfolioObjectKey;
         this.portfolioFileName = portfolioFileName;
         this.portfolioUploadedAt = portfolioUploadedAt;
         this.isOnboarded = true;
     }
 
-    public void updateMyPageProfile(String name, Integer age, String profileImageUrl) {
+    public void updateMyPageProfile(String name, Integer age) {
         this.nickname = name;
         this.username = name;
         if (age != null) {
             this.age = age;
         }
-        this.profileImageUrl = profileImageUrl;
+    }
+
+    public void changeProfileImage(String objectKey) {
+        this.profileImageObjectKey = objectKey;
+    }
+
+    public void removeProfileImage() {
+        this.profileImageObjectKey = null;
     }
 
     public void linkSocialId(String socialId) {
@@ -170,9 +215,23 @@ public class User extends BaseEntity {
 
     public void withdraw() {
         this.deletedAt = LocalDateTime.now();
+        // 탈퇴한 계정의 깃허브 토큰을 남겨 둘 이유가 없다.
+        this.githubAccessToken = null;
     }
 
     public boolean isWithdrawn() {
         return deletedAt != null;
+    }
+
+    public void suspend(LocalDateTime suspendedAt) {
+        this.suspendedAt = suspendedAt;
+    }
+
+    public void unsuspend() {
+        this.suspendedAt = null;
+    }
+
+    public boolean isSuspended() {
+        return suspendedAt != null;
     }
 }

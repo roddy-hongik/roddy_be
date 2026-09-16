@@ -1,0 +1,42 @@
+# 수동 작성. 회사=hyundai
+# 분류: 자체 JSON API (현대자동차그룹 채용)
+# API: https://talent.hyundai.com/api/main/AP-HM-FO-00900
+company: hyundai
+company_name_ko: 현대자동차그룹
+entry_url: https://talent.hyundai.com/apply/applyList.hc
+crawler: declarative
+source_type: json
+
+list:
+  url: https://talent.hyundai.com/api/main/AP-HM-FO-00900
+  method: GET
+  params:
+    lang: ko
+    hgrCd: "1"
+  response_path: data.appList
+
+pagination:
+  type: none
+
+required:
+- job_id
+- title
+
+fields:
+  job_id: recuCls
+  title: recuNoticeNm
+  posted_at: applyStartDt
+  deadline: applyEndDt
+  location: workPlaceCodeNm
+  job_category: fldCodeNm
+
+# TODO: apply_url 이 없어 적재 시 전 건이 실패한다. 공고 상세 URL 패턴을 확인해
+#       apply_url.template 을 추가해야 한다 (talent.hyundai.com 상세 페이지 규칙 확인 필요).
+
+extra:
+  career_type: channelCodeNm
+  sector: secCodeNm
+  logo: logoNm
+  posting_category: jdRecuCateNm
+  recu_year: recuYy
+  recu_type: recuType

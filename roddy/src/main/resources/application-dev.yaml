@@ -3,8 +3,8 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:mysql://localhost:3306/${DB_NAME:roddy}?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
-    username: root
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:roddy}?useSSL=false&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
@@ -45,6 +45,9 @@ jwt:
     refresh-token: ${JWT_REFRESH_TOKEN_EXPIRATION:1209600000}
 
 app:
+  security:
+    # 깃허브 액세스 토큰 암호화 키. 운영에서는 반드시 별도 값으로 채운다.
+    token-secret-key: ${TOKEN_SECRET_KEY:roddy-local-token-secret-key}
   oauth2:
     redirect-uri: ${APP_OAUTH2_REDIRECT_URI:http://localhost:3000/oauth2/redirect}
     google-base-url: ${APP_OAUTH2_GOOGLE_BASE_URL:https://openidconnect.googleapis.com}

@@ -1,5 +1,25 @@
 spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  # 기술 그래프 저장소. compose 에서는 서비스 이름(neo4j)으로 덮어쓴다.
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:}
+    # 그래프가 떠 있지 않아도 수집이나 어드민 요청이 오래 붙잡히지 않도록 짧게 기다린다.
+    connection-timeout: 5s
+    pool:
+      connection-acquisition-timeout: 5s
 
 
+app:
+  ai:
+    # 같은 도커 네트워크 안의 AI 서버. 로컬에서 따로 띄울 때는 localhost 로 덮어쓴다.
+    base-url: ${APP_AI_BASE_URL:http://localhost:8000}
+    internal-secret: ${APP_AI_INTERNAL_SECRET:roddy-local-internal-secret}
+  crawler:
+    scheduler:
+      # 실제 채용 사이트로 요청이 나가므로 기본값은 꺼짐. 운영에서 의도적으로 켠다.
+      enabled: ${CRAWLER_SCHEDULER_ENABLED:false}
+      cron: ${CRAWLER_SCHEDULER_CRON:0 0 4 * * *}

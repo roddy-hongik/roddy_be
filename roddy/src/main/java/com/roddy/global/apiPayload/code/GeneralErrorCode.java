@@ -17,6 +17,7 @@ public enum GeneralErrorCode implements BaseErrorCode {
     INVALID_LOGIN(HttpStatus.UNAUTHORIZED, "AUTH_4012", "올바르지 않은 아이디, 혹은 비밀번호입니다."),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_4013", "유효하지 않은 토큰입니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "AUTH_4031", "접근 권한이 없습니다."),
+    USER_SUSPENDED(HttpStatus.FORBIDDEN, "AUTH_4032", "정지된 계정입니다. 운영자에게 문의해주세요."),
     TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "AUTH_4191", "토큰이 만료되었습니다."),
 
     // 서버 내부 에러
@@ -31,6 +32,7 @@ public enum GeneralErrorCode implements BaseErrorCode {
 
     // 유저 에러
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_4041", "유저를 찾을 수 없습니다."),
+    USER_SUSPEND_FORBIDDEN(HttpStatus.BAD_REQUEST, "USER_4001", "어드민 계정은 정지할 수 없습니다."),
 
     // 커뮤니티 에러
     COMMUNITY_POST_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMUNITY_4041", "게시글을 찾을 수 없습니다."),
@@ -39,6 +41,32 @@ public enum GeneralErrorCode implements BaseErrorCode {
     COMMUNITY_COMMENT_PARENT_INVALID(HttpStatus.BAD_REQUEST, "COMMUNITY_4001", "대댓글은 최상위 댓글에만 작성할 수 있습니다."),
     COMMUNITY_COMMENT_ALREADY_REPORTED(HttpStatus.CONFLICT, "COMMUNITY_4092", "이미 신고한 댓글입니다."),
     COMMUNITY_COMMENT_DELETE_FORBIDDEN(HttpStatus.FORBIDDEN, "COMMUNITY_4031", "본인 댓글만 삭제할 수 있습니다."),
+
+    // 채용공고 에러
+    JOB_POSTING_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB_4041", "채용공고를 찾을 수 없습니다."),
+    CRAWL_ALREADY_RUNNING(HttpStatus.CONFLICT, "JOB_4091", "이미 채용공고 수집이 진행 중입니다."),
+
+    // 역량 분석 에러
+    ANALYSIS_REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "ANALYSIS_4041", "분석 리포트를 찾을 수 없습니다."),
+
+    // 자기소개서 에러
+    COVER_LETTER_NOT_FOUND(HttpStatus.NOT_FOUND, "COVER_LETTER_4041", "자기소개서를 찾을 수 없습니다."),
+    COVER_LETTER_CONFLICT(HttpStatus.CONFLICT, "COVER_LETTER_4091", "다른 창에서 문서가 변경되었습니다. 작성 내용을 복사한 뒤 최신 문서를 다시 열어주세요."),
+
+    // 로드맵 에러
+    ROADMAP_GAP_EMPTY(HttpStatus.BAD_REQUEST, "ROADMAP_4001", "부족 기술이 없어 로드맵을 생성할 수 없습니다."),
+
+    // 모의면접 에러
+    INTERVIEW_GAP_EMPTY(HttpStatus.BAD_REQUEST, "INTERVIEW_4001", "부족 기술이 없어 모의면접 질문을 생성할 수 없습니다."),
+
+    // 알림 에러
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION_4041", "알림을 찾을 수 없습니다."),
+
+    // 기술 그래프 에러
+    GRAPH_TECH_STACK_NOT_FOUND(HttpStatus.NOT_FOUND, "GRAPH_4041", "기술 그래프에 없는 기술입니다."),
+    GRAPH_EDGE_NOT_FOUND(HttpStatus.NOT_FOUND, "GRAPH_4042", "관계를 찾을 수 없습니다."),
+    GRAPH_EDGE_SELF_LOOP(HttpStatus.BAD_REQUEST, "GRAPH_4001", "같은 기술끼리는 관계를 만들 수 없습니다."),
+    GRAPH_EDGE_DUPLICATED(HttpStatus.CONFLICT, "GRAPH_4091", "이미 같은 관계가 있습니다."),
 
     // 스터디 에러
     STUDY_NOT_FOUND(HttpStatus.NOT_FOUND, "STUDY_4041", "스터디 모집글을 찾을 수 없습니다."),

@@ -37,3 +37,8 @@ out/
 .vscode/
 .env
 .DS_STORE
+
+### Python (roddy_ai) ###
+__pycache__/
+*.pyc
+.venv/
