@@ -1,6 +1,8 @@
 # 🧭 Roddy (로디) - Backend
 > **"나만의 커리어 로드맵을 그려주는 AI 멘토, Roddy"**
 > 홍익대학교 컴퓨터공학과 졸업 프로젝트 (2026)
+<img width="1672" height="941" alt="Roddy배너" src="https://github.com/user-attachments/assets/0448f36a-2d27-4fca-8586-27e55e9adcc4" />
+
 
 [![Java](https://img.shields.io/badge/Java-17-007396?logo=java&logoColor=white)](#)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.x-6DB33F?logo=spring-boot&logoColor=white)](#)
