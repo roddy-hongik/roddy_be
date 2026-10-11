@@ -19,6 +19,10 @@
 | :---: | :---: | :--- | :---: |
 
 ## 🏗️ 3. 시스템 아키텍처 (System Architecture)
+[![Architecture diagram of roddy-hongik/roddy_be](https://gitdiagram.com/roddy-hongik/roddy_be/diagram.png)](https://gitdiagram.com/roddy-hongik/roddy_be?utm_source=readme&utm_medium=picture)
+
+<img width="9570" height="8727" alt="diagram" src="https://github.com/user-attachments/assets/5a115f1d-94ae-47c1-b2d7-b36bf184802a" />
+
 
 ## 🚀 4. 백엔드 핵심 기술 및 챌린지 (Technical Highlights)
 
