@@ -68,6 +68,7 @@ public class JobPostingSnapshotConverter {
                 .title(record.text(CrawlRecord.TITLE))
                 .content(record.text(FIELD_DESCRIPTION))
                 .recruitField(record.text(FIELD_JOB_CATEGORY))
+                .desiredJob(JobRoleClassifier.classify(record.text(CrawlRecord.TITLE), record.text(FIELD_JOB_CATEGORY)))
                 .recruitType(recruitType(record.text(FIELD_CAREER)))
                 .location(record.text(FIELD_LOCATION))
                 .employmentType(employmentType(record))

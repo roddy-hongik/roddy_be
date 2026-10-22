@@ -65,6 +65,8 @@ public class JobPostingIngestService {
                     updated++;
                 }
 
+                posting.updateDesiredJob(snapshot.desiredJob());
+
                 // 내용이 그대로여도 다시 뽑는다. 사전이 늘어나면 기존 공고도 따라 채워진다.
                 posting.updateTechStacks(techStackExtractor.extract(snapshot));
                 if (newlyCreated && posting.getStatus() == JobPostingStatus.OPEN) {

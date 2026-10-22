@@ -54,6 +54,7 @@ class JobPostingSnapshotConverterTest {
         assertThat(snapshot.title()).isEqualTo("백엔드 개발자");
         assertThat(snapshot.content()).isEqualTo("서버 개발");
         assertThat(snapshot.recruitField()).isEqualTo("Server");
+        assertThat(snapshot.desiredJob()).isEqualTo(com.roddy.domain.enums.DesiredJob.BACKEND);
         assertThat(snapshot.location()).isEqualTo("판교");
         assertThat(snapshot.employmentType()).isEqualTo("정규직");
         assertThat(snapshot.postedAt()).isEqualTo(LocalDateTime.of(2026, 5, 14, 0, 0));
