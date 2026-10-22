@@ -18,7 +18,7 @@ public final class JobRoleClassifier {
     }
 
     private static final List<Rule> RULES = List.of(
-            rule(DesiredJob.BACKEND, "백엔드|백[ -]?엔드|서버\\s*개발|(?<![a-z])back[ -]?end(?![a-z])|server\\s*(developer|engineer)"),
+            rule(DesiredJob.BACKEND, "백엔드|백[ -]?엔드|(?<!게임\\s*)서버\\s*개발|(?<![a-z])back[ -]?end(?![a-z])|(?<![a-z])(?<!game\\s*)server\\s*(developer|engineer)"),
             rule(DesiredJob.FRONTEND, "프론트엔드|프론트[ -]?엔드|(?<![a-z])front[ -]?end(?![a-z])"),
             rule(DesiredJob.FULLSTACK, "풀스택|풀[ -]?스택|(?<![a-z])full[ -]?stack(?![a-z])"),
             rule(DesiredJob.IOS, "(?<![a-z])ios(?![a-z])|아이폰\\s*개발"),
