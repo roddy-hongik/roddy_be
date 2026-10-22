@@ -2,6 +2,7 @@ package com.roddy.domain.jobposting.service;
 
 import com.roddy.domain.auth.service.SocialAuthService;
 import com.roddy.domain.enums.JobPostingStatus;
+import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.jobposting.dto.IngestSummary;
 import com.roddy.domain.jobposting.entity.JobPosting;
 import com.roddy.domain.jobposting.repository.JobPostingRepository;
@@ -42,6 +43,9 @@ class JobPostingIngestServiceTest {
     private JobPostingRepository jobPostingRepository;
 
     @Autowired
+    private JobRoleBackfillService backfillService;
+
+    @Autowired
     private TransactionTemplate transactionTemplate;
 
     @MockitoBean
@@ -62,6 +66,35 @@ class JobPostingIngestServiceTest {
     @BeforeEach
     void setUp() {
         jobPostingRepository.deleteAll();
+    }
+
+    @Test
+    void classifiesNewAndUnchangedPostings() {
+        ingestService.ingest(spec, healthy(record("P-1", "Backend Engineer")), FIRST_RUN);
+        assertThat(find("P-1").getDesiredJob()).isEqualTo(DesiredJob.BACKEND);
+        transactionTemplate.executeWithoutResult(status ->
+                jobPostingRepository.findById(find("P-1").getId()).orElseThrow().updateDesiredJob(null));
+        IngestSummary summary = ingestService.ingest(spec, healthy(record("P-1", "Backend Engineer")), SECOND_RUN);
+        assertThat(summary.unchanged()).isEqualTo(1);
+        assertThat(find("P-1").getDesiredJob()).isEqualTo(DesiredJob.BACKEND);
+    }
+
+    @Test
+    void backfillsMissingRolesAndPreservesExistingClassification() {
+        ingestService.ingest(spec, healthy(record("P-1", "Backend Engineer"),
+                record("P-2", "영업 담당자"), record("P-3", "Frontend Engineer")), FIRST_RUN);
+        transactionTemplate.executeWithoutResult(status -> {
+            jobPostingRepository.findById(find("P-1").getId()).orElseThrow().updateDesiredJob(null);
+            jobPostingRepository.findById(find("P-3").getId()).orElseThrow().updateDesiredJob(DesiredJob.IOS);
+        });
+        JobRoleBackfillService.Result result = backfillService.backfill(0);
+        assertThat(result.scanned()).isEqualTo(2);
+        assertThat(result.classified()).isEqualTo(1);
+        assertThat(result.unclassified()).isEqualTo(1);
+        assertThat(find("P-1").getDesiredJob()).isEqualTo(DesiredJob.BACKEND);
+        assertThat(find("P-2").getDesiredJob()).isNull();
+        assertThat(find("P-3").getDesiredJob()).isEqualTo(DesiredJob.IOS);
+        assertThat(backfillService.backfill(result.nextAfterId()).scanned()).isZero();
     }
 
     @Test
@@ -158,6 +191,9 @@ class JobPostingIngestServiceTest {
         ingestService.ingest(spec, healthy(withContent), FIRST_RUN);
 
         assertThat(techStacksOf("P-1")).contains("Spring Boot", "MySQL", "Java");
+        assertThat(jobPostingRepository.countRequiredStacks(JobPostingStatus.OPEN, DesiredJob.BACKEND))
+                .extracting(row -> (String) row[0]).contains("Spring Boot", "MySQL", "Java");
+        assertThat(jobPostingRepository.countRequiredStacks(JobPostingStatus.OPEN, DesiredJob.FRONTEND)).isEmpty();
     }
 
     @Test

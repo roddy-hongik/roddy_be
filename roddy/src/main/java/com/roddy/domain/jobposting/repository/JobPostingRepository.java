@@ -16,6 +16,8 @@ import java.util.Optional;
 
 public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
 
+    List<JobPosting> findTop200ByIdGreaterThanAndDesiredJobIsNullOrderByIdAsc(Long id);
+
     /** 수집 원본의 자연키로 기존 공고를 찾는다. 수집 적재가 upsert 로 동작하는 근거. */
     Optional<JobPosting> findByCompanyCodeAndExternalId(String companyCode, String externalId);
 

@@ -203,6 +203,11 @@ public class JobPosting extends BaseEntity {
         }
     }
 
+    /** 수집 원문이 그대로여도 새 분류 규칙을 적용한다. */
+    public void updateDesiredJob(DesiredJob desiredJob) {
+        this.desiredJob = desiredJob;
+    }
+
     /** 뽑아낸 기술스택이 달라졌을 때만 갈아끼운다. 매 수집마다 컬렉션을 다시 쓰지 않기 위함이다. */
     public void updateTechStacks(Set<String> extracted) {
         if (this.techStacks.equals(extracted)) {

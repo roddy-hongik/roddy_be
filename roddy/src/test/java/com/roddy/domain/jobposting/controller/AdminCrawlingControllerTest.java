@@ -207,6 +207,20 @@ class AdminCrawlingControllerTest {
         verify(crawlLauncher, never()).startInBackground();
     }
 
+    @Test
+    void classifyingJobsRequiresAdminAndValidCursor() throws Exception {
+        mockMvc.perform(post("/api/admin/crawling/classify-jobs"))
+                .andExpect(status().isUnauthorized());
+        User member = saveUser("member-classify@example.com", "일반유저", Role.USER);
+        mockMvc.perform(post("/api/admin/crawling/classify-jobs").with(user(new UserDetailsImpl(member))))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/admin/crawling/classify-jobs").param("afterId", "-1").with(user(adminDetails())))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/admin/crawling/classify-jobs").with(user(adminDetails())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.nextAfterId").isNumber());
+    }
+
     private UserDetailsImpl adminDetails() {
         return new UserDetailsImpl(saveUser("admin-%s@example.com".formatted(createdUsers.size()), "관리자", Role.ADMIN));
     }
