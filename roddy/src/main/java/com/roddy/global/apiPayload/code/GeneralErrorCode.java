@@ -58,6 +58,7 @@ public enum GeneralErrorCode implements BaseErrorCode {
 
     // 모의면접 에러
     INTERVIEW_GAP_EMPTY(HttpStatus.BAD_REQUEST, "INTERVIEW_4001", "부족 기술이 없어 모의면접 질문을 생성할 수 없습니다."),
+    INTERVIEW_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "INTERVIEW_4041", "모의면접 결과를 찾을 수 없습니다."),
 
     // 알림 에러
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION_4041", "알림을 찾을 수 없습니다."),

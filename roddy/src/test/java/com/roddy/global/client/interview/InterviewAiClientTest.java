@@ -72,9 +72,47 @@ class InterviewAiClientTest {
                         exception -> assertThat(exception.getCode()).isEqualTo(GeneralErrorCode.SERVICE_UNAVAILABLE));
     }
 
+    @Test
+    void AI_서버의_계약대로_snake_case_로_피드백을_요청하고_읽는다() throws Exception {
+        startFeedback(200, """
+                {"feedbacks": [
+                  {"id": "q1", "score": 80, "feedback": "TTL 언급은 좋았지만 무효화 방식이 부족합니다."},
+                  {"id": "q2", "score": 60, "feedback": "분산 락 사례가 더 필요합니다."},
+                  {"id": "q3", "score": 90, "feedback": "fallback 전략이 구체적입니다."}
+                ]}
+                """);
+
+        InterviewAiFeedbackResponse response = client().generateFeedback(new InterviewAiFeedbackRequest(List.of(
+                new InterviewAiFeedbackRequest.Answer("q1", "Redis 캐시 무효화 전략은?", "일관성", List.of("TTL"), "TTL로 관리합니다."))));
+
+        assertThat(secretHeader.get()).isEqualTo("secret");
+        assertThat(requestBody.get()).contains("\"key_points\"", "\"question\"", "\"intent\"", "\"answer\"");
+        assertThat(response.feedbacks()).hasSize(3);
+        assertThat(response.feedbacks().getFirst().id()).isEqualTo("q1");
+        assertThat(response.feedbacks().getFirst().score()).isEqualTo(80);
+    }
+
+    @Test
+    void AI_서버가_피드백_요청에_오류로_답하면_서비스를_잠시_쓸_수_없다고_던진다() throws Exception {
+        startFeedback(500, "{\"detail\":\"error\"}");
+
+        assertThatThrownBy(() -> client().generateFeedback(new InterviewAiFeedbackRequest(List.of(
+                new InterviewAiFeedbackRequest.Answer("q1", "질문", "의도", List.of("포인트"), "답변")))))
+                .isInstanceOfSatisfying(GeneralException.class,
+                        exception -> assertThat(exception.getCode()).isEqualTo(GeneralErrorCode.SERVICE_UNAVAILABLE));
+    }
+
     private void start(int status, String responseBody) throws IOException {
+        start("/internal/interview-questions", status, responseBody);
+    }
+
+    private void startFeedback(int status, String responseBody) throws IOException {
+        start("/internal/interview-feedback", status, responseBody);
+    }
+
+    private void start(String path, int status, String responseBody) throws IOException {
         server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-        server.createContext("/internal/interview-questions", exchange -> {
+        server.createContext(path, exchange -> {
             secretHeader.set(exchange.getRequestHeaders().getFirst("X-Internal-Secret"));
             requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
 

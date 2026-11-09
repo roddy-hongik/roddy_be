@@ -56,4 +56,22 @@ public class InterviewAiClient {
             throw new GeneralException(GeneralErrorCode.SERVICE_UNAVAILABLE);
         }
     }
+
+    public InterviewAiFeedbackResponse generateFeedback(InterviewAiFeedbackRequest request) {
+        try {
+            return restClient.post()
+                    .uri("/internal/interview-feedback")
+                    .header(INTERNAL_SECRET_HEADER, internalSecret)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .body(InterviewAiFeedbackResponse.class);
+        } catch (RestClientResponseException exception) {
+            log.warn("모의면접 피드백 생성 요청이 실패했습니다. status={}", exception.getStatusCode().value());
+            throw new GeneralException(GeneralErrorCode.SERVICE_UNAVAILABLE);
+        } catch (ResourceAccessException exception) {
+            log.warn("모의면접 피드백 생성 요청에 AI 서버가 응답하지 않았습니다.", exception);
+            throw new GeneralException(GeneralErrorCode.SERVICE_UNAVAILABLE);
+        }
+    }
 }
