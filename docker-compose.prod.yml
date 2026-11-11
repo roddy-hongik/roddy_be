@@ -1,0 +1,79 @@
+services:
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD}
+    volumes:
+      - neo4j-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"$${NEO4J_AUTH#neo4j/}\" 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  ai:
+    image: ${RODDY_AI_IMAGE:-ghcr.io/roddy-hongik/roddy_ai:latest}
+    environment:
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Set INTERNAL_API_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  be:
+    build:
+      context: ./roddy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      AWS_DB_URL: ${AWS_DB_URL:?Set AWS_DB_URL}
+      DB_NAME: ${DB_NAME:?Set DB_NAME}
+      AWS_DB_USERNAME: ${AWS_DB_USERNAME:?Set AWS_DB_USERNAME}
+      AWS_DB_PASSWORD: ${AWS_DB_PASSWORD:?Set AWS_DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?Set NEO4J_PASSWORD}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?Set GOOGLE_CLIENT_SECRET}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:?Set GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:?Set GITHUB_CLIENT_SECRET}
+      AWS_REGION: ${AWS_REGION:?Set AWS_REGION}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:?Set AWS_S3_BUCKET}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY}
+      APP_AI_BASE_URL: http://ai:8000
+      APP_AI_INTERNAL_SECRET: ${INTERNAL_API_SECRET:?Set INTERNAL_API_SECRET}
+      TOKEN_SECRET_KEY: ${TOKEN_SECRET_KEY:?Set TOKEN_SECRET_KEY}
+      APP_OAUTH2_REDIRECT_URI: ${APP_OAUTH2_REDIRECT_URI:?Set APP_OAUTH2_REDIRECT_URI}
+      GITHUB_OAUTH_REDIRECT_URI: ${GITHUB_OAUTH_REDIRECT_URI:?Set GITHUB_OAUTH_REDIRECT_URI}
+      GITHUB_FRONTEND_REDIRECT_URI: ${GITHUB_FRONTEND_REDIRECT_URI:?Set GITHUB_FRONTEND_REDIRECT_URI}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${DDL_AUTO:-validate}
+    ports:
+      - "${BE_PORT:-8080}:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      ai:
+        condition: service_healthy
+
+volumes:
+  redis-data:
+  neo4j-data:
