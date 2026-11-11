@@ -35,10 +35,16 @@ out/
 
 ### VS Code ###
 .vscode/
-.env
+roddy/.env
 .DS_STORE
 
 ### Python (roddy_ai) ###
 __pycache__/
 *.pyc
 .venv/
+
+# Deployment secrets
+.env
+.env.*
+!.env.example
+!/.env.prod.example
