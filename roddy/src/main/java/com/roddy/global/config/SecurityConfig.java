@@ -90,6 +90,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         var config = new org.springframework.web.cors.CorsConfiguration();
         config.setAllowedOrigins(java.util.List.of(
+                "https://roddy-fe.vercel.app",
                 "https://jobdri.site",
                 "https://www.jobdri.site",
                 "https://api.jobdri.site",
