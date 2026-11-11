@@ -25,6 +25,11 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
+  neo4j:
+    uri: ${NEO4J_URI}
+    authentication:
+      username: ${NEO4J_USERNAME}
+      password: ${NEO4J_PASSWORD}
   cloud:
     aws:
       region:
@@ -41,6 +46,9 @@ jwt:
     refresh-token: ${JWT_REFRESH_TOKEN_EXPIRATION:1209600000}
 
 app:
+  ai:
+    base-url: ${APP_AI_BASE_URL}
+    internal-secret: ${APP_AI_INTERNAL_SECRET}
   security:
     token-secret-key: ${TOKEN_SECRET_KEY}
   oauth2:
@@ -54,3 +62,5 @@ app:
     frontend-redirect-uri: ${GITHUB_FRONTEND_REDIRECT_URI:https://jobdri.site/onboarding/github}
   portfolio:
     presign-expiration-minutes: ${PORTFOLIO_PRESIGN_EXPIRATION_MINUTES:10}
+  profile-image:
+    presign-expiration-minutes: ${PROFILE_IMAGE_PRESIGN_EXPIRATION_MINUTES:10}

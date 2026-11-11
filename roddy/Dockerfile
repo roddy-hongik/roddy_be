@@ -7,7 +7,7 @@ WORKDIR /workspace
 COPY gradlew ./
 COPY gradle ./gradle
 COPY build.gradle settings.gradle ./
-RUN sh gradlew dependencies --no-daemon > /dev/null 2>&1 || true
+RUN sh gradlew dependencies --no-daemon
 
 COPY src ./src
 RUN sh gradlew bootJar --no-daemon -x test

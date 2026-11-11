@@ -42,3 +42,5 @@ out/
 *.bak
 *.swp
 *.swo
+
+.env.docker
