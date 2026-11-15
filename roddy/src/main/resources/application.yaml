@@ -1,6 +1,13 @@
 spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  servlet:
+    multipart:
+      # 커뮤니티 글 이미지 업로드. 기본값(파일당 1MB)이면 휴대폰 사진 대부분이 막힌다.
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:50MB}
+      # 컨트롤러 인자를 만들 때 파싱해야 용량 초과가 ExceptionAdvice 로 와서 ApiResponse 로 응답된다.
+      resolve-lazily: true
   # 개발 환경 기본값. 운영 환경에서는 application-prod.yaml의 필수 환경변수를 사용한다.
   neo4j:
     uri: ${NEO4J_URI:bolt://localhost:7687}

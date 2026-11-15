@@ -49,13 +49,13 @@ app:
     # 깃허브 액세스 토큰 암호화 키. 운영에서는 반드시 별도 값으로 채운다.
     token-secret-key: ${TOKEN_SECRET_KEY:roddy-local-token-secret-key}
   oauth2:
-    redirect-uri: ${APP_OAUTH2_REDIRECT_URI:http://localhost:3000/oauth2/redirect}
+    redirect-uri: ${APP_OAUTH2_REDIRECT_URI:http://localhost:5173/oauth2/redirect}
     google-base-url: ${APP_OAUTH2_GOOGLE_BASE_URL:https://openidconnect.googleapis.com}
     kakao-base-url: ${APP_OAUTH2_KAKAO_BASE_URL:https://kapi.kakao.com}
   github:
     client-id: ${GITHUB_CLIENT_ID:}
     client-secret: ${GITHUB_CLIENT_SECRET:}
     oauth-redirect-uri: ${GITHUB_OAUTH_REDIRECT_URI:http://localhost:8080/api/onboarding/github/callback}
-    frontend-redirect-uri: ${GITHUB_FRONTEND_REDIRECT_URI:http://localhost:3000/onboarding/github}
+    frontend-redirect-uri: ${GITHUB_FRONTEND_REDIRECT_URI:http://localhost:5173/onboarding/github}
   portfolio:
     presign-expiration-minutes: ${PORTFOLIO_PRESIGN_EXPIRATION_MINUTES:10}
