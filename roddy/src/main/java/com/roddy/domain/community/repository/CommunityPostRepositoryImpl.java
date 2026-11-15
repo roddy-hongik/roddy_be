@@ -14,6 +14,7 @@ import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -37,15 +38,23 @@ public class CommunityPostRepositoryImpl implements CommunityPostRepositoryCusto
 
         CriteriaQuery<Long> idQuery = cb.createQuery(Long.class);
         Root<CommunityPost> root = idQuery.from(CommunityPost.class);
-        root.join("author", JoinType.INNER);
-        Join<CommunityPost, CommunityRoadmapPostDetail> roadmapDetail = root.join("roadmapDetail", JoinType.LEFT);
+
+        // 기술 스택 컬렉션을 조인하면 글 한 개가 여러 행이 된다. 조건은 서브쿼리에서 걸러 중복을 없애고,
+        // 바깥 쿼리는 distinct 없이 정렬만 한다. MySQL 은 정렬 컬럼(like_count 등)이 select 에 없는
+        // "select distinct id ... order by ..." 를 거부한다(H2 테스트에서는 드러나지 않았다).
+        Subquery<Long> matchingIds = idQuery.subquery(Long.class);
+        Root<CommunityPost> candidate = matchingIds.from(CommunityPost.class);
+        candidate.join("author", JoinType.INNER);
+        Join<CommunityPost, CommunityRoadmapPostDetail> roadmapDetail = candidate.join("roadmapDetail", JoinType.LEFT);
         Join<CommunityRoadmapPostDetail, String> roadmapSkills = roadmapDetail.join("recommendedSkills", JoinType.LEFT);
-        Join<CommunityPost, CommunityInterviewPostDetail> interviewDetail = root.join("interviewDetail", JoinType.LEFT);
+        Join<CommunityPost, CommunityInterviewPostDetail> interviewDetail = candidate.join("interviewDetail", JoinType.LEFT);
         Join<CommunityInterviewPostDetail, String> interviewSkills = interviewDetail.join("techStacks", JoinType.LEFT);
 
-        List<Predicate> predicates = buildPredicates(condition, cb, root, roadmapDetail, roadmapSkills, interviewDetail, interviewSkills);
-        idQuery.select(root.get("id")).distinct(true);
-        idQuery.where(predicates.toArray(Predicate[]::new));
+        List<Predicate> predicates = buildPredicates(condition, cb, candidate, roadmapDetail, roadmapSkills, interviewDetail, interviewSkills);
+        matchingIds.select(candidate.get("id")).where(predicates.toArray(Predicate[]::new));
+
+        idQuery.select(root.get("id"));
+        idQuery.where(root.get("id").in(matchingIds));
         idQuery.orderBy(buildOrders(cb, root, pageable));
 
         TypedQuery<Long> idTypedQuery = entityManager.createQuery(idQuery);
@@ -174,9 +183,8 @@ public class CommunityPostRepositoryImpl implements CommunityPostRepositoryCusto
         } else {
             orders.add(cb.desc(root.get("createdAt")));
         }
-        if (orders.stream().noneMatch(order -> order.toString().contains("createdAt"))) {
-            orders.add(cb.desc(root.get("createdAt")));
-        }
+        // 좋아요·조회 수가 같은 글이 페이지 경계에서 빠지거나 겹치지 않도록 id 로 순서를 고정한다.
+        orders.add(cb.desc(root.get("id")));
         return orders;
     }
 

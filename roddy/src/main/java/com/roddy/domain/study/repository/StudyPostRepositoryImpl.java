@@ -36,7 +36,9 @@ public class StudyPostRepositoryImpl implements StudyPostRepositoryCustom {
         Root<StudyPost> root = idQuery.from(StudyPost.class);
 
         List<Predicate> predicates = buildPredicates(condition, cb, root);
-        idQuery.select(root.get("id")).distinct(true);
+        // 조인이 없어 distinct 가 필요 없다. MySQL 은 정렬 컬럼(created_at)이 select 에 없으면
+        // "ORDER BY ... incompatible with DISTINCT" 로 쿼리를 거부한다(H2 테스트에서는 드러나지 않았다).
+        idQuery.select(root.get("id"));
         idQuery.where(predicates.toArray(Predicate[]::new));
         idQuery.orderBy(buildOrders(cb, root, pageable));
 
@@ -118,9 +120,8 @@ public class StudyPostRepositoryImpl implements StudyPostRepositoryCustom {
         } else {
             orders.add(cb.desc(root.get("createdAt")));
         }
-        if (orders.stream().noneMatch(order -> order.toString().contains("createdAt"))) {
-            orders.add(cb.desc(root.get("createdAt")));
-        }
+        // 같은 시각에 만든 글이 페이지 경계에서 빠지거나 겹치지 않도록 id 로 순서를 고정한다.
+        orders.add(cb.desc(root.get("id")));
         return orders;
     }
 
