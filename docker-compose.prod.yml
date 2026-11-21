@@ -1,6 +1,7 @@
 services:
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     volumes:
       - redis-data:/data
     healthcheck:
@@ -11,6 +12,7 @@ services:
 
   neo4j:
     image: neo4j:5-community
+    restart: unless-stopped
     environment:
       NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD}
     volumes:
@@ -23,6 +25,7 @@ services:
 
   ai:
     image: ${RODDY_AI_IMAGE:-ghcr.io/roddy-hongik/roddy_ai:latest}
+    restart: unless-stopped
     environment:
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Set INTERNAL_API_SECRET}
       OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY}
@@ -37,6 +40,7 @@ services:
       retries: 10
 
   be:
+    restart: unless-stopped
     build:
       context: ./roddy
     environment:
