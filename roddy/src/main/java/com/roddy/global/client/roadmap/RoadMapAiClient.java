@@ -32,7 +32,10 @@ public class RoadMapAiClient {
         }
         this.internalSecret = internalSecret;
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
-                HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build());
+                HttpClient.newBuilder()
+                        .version(HttpClient.Version.HTTP_1_1)
+                        .connectTimeout(CONNECT_TIMEOUT)
+                        .build());
         requestFactory.setReadTimeout(READ_TIMEOUT);
         this.restClient = RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory).build();
     }

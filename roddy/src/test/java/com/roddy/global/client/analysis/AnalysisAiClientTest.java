@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AnalysisAiClientTest {
 
     private final AtomicReference<String> requestBody = new AtomicReference<>();
+    private final AtomicReference<String> upgradeHeader = new AtomicReference<>();
     private HttpServer server;
 
     @AfterEach
@@ -46,6 +47,7 @@ class AnalysisAiClientTest {
                 1L, "https://github.com/octocat", null, "https://s3.example.com/resume.pdf", "resume.pdf",
                 "BACKEND", "JUNIOR", List.of(new AnalysisAiRequest.Category("DATA_MODELING", "데이터 설계", "설명"))));
 
+        assertThat(upgradeHeader.get()).isNull();
         assertThat(requestBody.get())
                 .contains("\"user_id\":1", "\"github_url\"", "\"portfolio_url\"", "\"portfolio_file_name\"",
                         "\"desired_job\"", "\"experience_years\"", "\"categories\"")
@@ -62,6 +64,7 @@ class AnalysisAiClientTest {
     private void start(String responseBody) throws IOException {
         server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
         server.createContext("/internal/analyses", exchange -> {
+            upgradeHeader.set(exchange.getRequestHeaders().getFirst("Upgrade"));
             requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
 
             byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);

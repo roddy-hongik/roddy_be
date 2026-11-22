@@ -20,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class InterviewAiClientTest {
 
     private final AtomicReference<String> requestBody = new AtomicReference<>();
+    private final AtomicReference<String> upgradeHeader = new AtomicReference<>();
     private final AtomicReference<String> secretHeader = new AtomicReference<>();
     private HttpServer server;
 
@@ -44,6 +45,7 @@ class InterviewAiClientTest {
                 List.of("Java"), List.of("Redis"), "백엔드 개발자", "토스"));
 
         assertThat(secretHeader.get()).isEqualTo("secret");
+        assertThat(upgradeHeader.get()).isNull();
         assertThat(requestBody.get())
                 .contains("\"current_skills\"", "\"gap_skills\"", "\"target_job\"", "\"target_company\"");
         assertThat(response.questions()).hasSize(3);
@@ -76,6 +78,7 @@ class InterviewAiClientTest {
         server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
         server.createContext("/internal/interview-questions", exchange -> {
             secretHeader.set(exchange.getRequestHeaders().getFirst("X-Internal-Secret"));
+            upgradeHeader.set(exchange.getRequestHeaders().getFirst("Upgrade"));
             requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
 
             byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);
