@@ -95,6 +95,23 @@ class AnalysisReportStoreTest {
     }
 
     @Test
+    @DisplayName("재시작 시 중단된 분석만 실패 처리하고 완료 리포트는 보존한다")
+    void recoversInterruptedAnalyses() {
+        User user = saveUser("interrupted@example.com");
+        Long completedId = analysisReportStore.createPending(user.getId());
+        analysisReportStore.complete(completedId, response(stack("Java", 80, "INTERMEDIATE", "설명")));
+        Long interruptedId = analysisReportStore.createPending(user.getId());
+
+        assertThat(analysisReportStore.recoverInterruptedAnalyses()).isEqualTo(1);
+        assertThat(analysisReportRepository.findById(interruptedId).orElseThrow().getStatus())
+                .isEqualTo(AnalysisStatus.FAILED);
+        assertThat(analysisReportRepository.findById(completedId).orElseThrow().getStatus())
+                .isEqualTo(AnalysisStatus.COMPLETED);
+        assertThat(analysisReportStore.isAnalyzing(user.getId())).isFalse();
+        assertThat(analysisReportStore.recoverInterruptedAnalyses()).isZero();
+    }
+
+    @Test
     @DisplayName("리포트에 분석을 요청한 당시의 직무를 남긴다")
     void keepsDesiredJobAtRequest() {
         User user = saveUser("job@example.com");
