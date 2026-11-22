@@ -22,4 +22,6 @@ public interface AnalysisReportRepository extends JpaRepository<AnalysisReport, 
     Optional<AnalysisReport> findByIdAndUserId(Long id, Long userId);
 
     boolean existsByUserIdAndStatus(Long userId, AnalysisStatus status);
+
+    List<AnalysisReport> findAllByStatus(AnalysisStatus status);
 }

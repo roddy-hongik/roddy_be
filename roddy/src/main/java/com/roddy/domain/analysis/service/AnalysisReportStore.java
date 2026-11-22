@@ -76,6 +76,14 @@ public class AnalysisReportStore {
         analysisReportRepository.findById(reportId).ifPresent(report -> report.fail(reason));
     }
 
+    /** 단일 백엔드 인스턴스의 재기동 시 이전 프로세스에서 중단된 분석만 복구한다. */
+    @Transactional
+    public int recoverInterruptedAnalyses() {
+        List<AnalysisReport> interrupted = analysisReportRepository.findAllByStatus(AnalysisStatus.PENDING);
+        interrupted.forEach(report -> report.fail("서버 재시작으로 분석이 중단되었습니다. 다시 분석해 주세요."));
+        return interrupted.size();
+    }
+
     @Transactional(readOnly = true)
     public boolean isAnalyzing(Long userId) {
         return analysisReportRepository.existsByUserIdAndStatus(userId, AnalysisStatus.PENDING);

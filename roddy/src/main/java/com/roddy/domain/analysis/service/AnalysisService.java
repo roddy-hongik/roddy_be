@@ -6,9 +6,12 @@ import com.roddy.domain.analysis.dto.response.AnalysisReportSummaryResponse;
 import com.roddy.domain.analysis.entity.AnalysisReport;
 import com.roddy.global.apiPayload.code.GeneralErrorCode;
 import com.roddy.global.apiPayload.exception.GeneralException;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * 역량 분석의 바깥쪽 창구.
@@ -24,6 +27,15 @@ public class AnalysisService {
     private final AnalysisReportStore analysisReportStore;
     private final AnalysisRunner analysisRunner;
 
+    // 현재 운영은 단일 백엔드 인스턴스다. 새 요청을 받기 전에 이전 프로세스의 PENDING을 정리한다.
+    @PostConstruct
+    void recoverInterruptedAnalyses() {
+        int recovered = analysisReportStore.recoverInterruptedAnalyses();
+        if (recovered > 0) {
+            log.warn("서버 재시작으로 중단된 분석 {}건을 실패 처리했습니다.", recovered);
+        }
+    }
+
     /**
      * 분석을 시작한다. 리포트는 요청할 때마다 새로 쌓는다.
      *
@@ -36,7 +48,12 @@ public class AnalysisService {
         }
 
         Long reportId = analysisReportStore.createPending(userId);
-        analysisRunner.run(userId, reportId);
+        try {
+            analysisRunner.run(userId, reportId);
+        } catch (RejectedExecutionException e) {
+            log.warn("분석 실행 대기열이 가득 찼습니다. reportId={}", reportId, e);
+            analysisReportStore.fail(reportId, "분석 요청이 많습니다. 잠시 후 다시 분석해 주세요.");
+        }
 
         return getReport(userId);
     }
