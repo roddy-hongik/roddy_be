@@ -195,6 +195,17 @@ class JobPostingControllerTest {
     }
 
     @Test
+    @DisplayName("HTML 공고 본문은 태그 없이 읽을 수 있는 글로 반환한다")
+    void returnsReadableHtmlContent() throws Exception {
+        JobPosting posting = savePosting("P-1", "백엔드 개발자",
+                builder -> builder.content("<h3>주요 업무</h3><div>서버 개발</div>"));
+
+        mockMvc.perform(get("/api/jobs/{jobPostingId}", posting.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.content").value("주요 업무\n서버 개발"));
+    }
+
+    @Test
     @DisplayName("뽑아 둔 요구 기술스택을 목록과 상세에 함께 준다")
     void returnsTechStacks() throws Exception {
         JobPosting posting = savePostingWithTechStacks("P-1", "백엔드 개발자", Set.of("Java", "Spring Boot"));

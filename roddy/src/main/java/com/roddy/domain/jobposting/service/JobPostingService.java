@@ -4,6 +4,7 @@ import com.roddy.domain.analysis.service.UserTechStackReader;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
 import com.roddy.domain.enums.JobPostingStatus;
+import com.roddy.domain.enums.DesiredJob;
 import com.roddy.domain.jobposting.dto.request.JobPostingSearchCondition;
 import com.roddy.domain.jobposting.dto.response.JobPostingDetailResponse;
 import com.roddy.domain.jobposting.dto.response.JobPostingListItemResponse;
@@ -25,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,6 +59,48 @@ public class JobPostingService {
             return getJobPostingsByMatchRate(condition, page, size, userId, userScores);
         }
         return getJobPostingsByLatest(condition, page, size, userId, userScores);
+    }
+
+    public List<JobPostingListItemResponse> getRecommendedJobs(Long userId, DesiredJob desiredJob,
+                                                                String desiredCompanies, int limit) {
+        if (desiredJob == null || desiredJob.isLegacyValue()) {
+            return List.of();
+        }
+        Map<String, Integer> userScores = userTechStackReader.read(userId);
+        if (userScores.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> candidates = jobPostingRepository.findRecommendationIds(
+                JobPostingStatus.OPEN, desiredJob, preferredCompanyNames(desiredCompanies));
+        List<Long> pageIds = slice(orderByMatchRate(candidates, userScores), 0, limit);
+        return toItems(sortByIdOrder(jobPostingRepository.findAllById(pageIds), pageIds), userId, userScores)
+                .stream()
+                .filter(job -> job.matchRate() != null && job.matchRate() > 0)
+                .toList();
+    }
+
+    /** 온보딩의 한글 기업명과 수집 명세의 영문 회사 코드를 함께 비교한다. */
+    private Set<String> preferredCompanyNames(String desiredCompanies) {
+        Map<String, String> companyCodes = Map.ofEntries(
+                Map.entry("네이버", "naver"), Map.entry("카카오", "kakao"),
+                Map.entry("쿠팡", "coupang"), Map.entry("당근", "daangn"),
+                Map.entry("우아한형제들", "woowahan"), Map.entry("토스", "toss"),
+                Map.entry("라인", "lineplus"), Map.entry("오늘의집", "bucketplace"),
+                Map.entry("직방", "zigbang"), Map.entry("마켓컬리", "kurly"),
+                Map.entry("카카오뱅크", "kakaobank"));
+        Set<String> names = new HashSet<>();
+        if (desiredCompanies != null) {
+            Arrays.stream(desiredCompanies.split(","))
+                    .map(name -> name.trim().toLowerCase(Locale.ROOT))
+                    .filter(name -> !name.isEmpty())
+                    .forEach(name -> {
+                        names.add(name);
+                        names.add(companyCodes.getOrDefault(name, name));
+                    });
+        }
+        // IN 절에 빈 컬렉션을 넘기지 않는다.
+        return names.isEmpty() ? Set.of("") : names;
     }
 
     private JobPostingListResponse getJobPostingsByLatest(JobPostingSearchCondition condition,
@@ -104,7 +149,7 @@ public class JobPostingService {
     private List<Long> orderByMatchRate(List<Long> candidateIds, Map<String, Integer> userScores) {
         Map<Long, List<String>> stacksByPosting = techStacksByPosting(candidateIds);
 
-        // 점수가 같으면 원래 순서(최신순)를 그대로 둔다. 자바의 정렬은 순서를 흔들지 않는다.
+        // 점수가 같으면 조회 시 정해진 순서를 그대로 둔다. 자바의 정렬은 순서를 흔들지 않는다.
         return candidateIds.stream()
                 .sorted(Comparator.comparingInt(
                         (Long id) -> matchRateOrZero(stacksByPosting.get(id), userScores)).reversed())

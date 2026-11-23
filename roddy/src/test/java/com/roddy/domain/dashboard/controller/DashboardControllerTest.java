@@ -140,6 +140,28 @@ class DashboardControllerTest {
     }
 
     @Test
+    @DisplayName("희망 직무 안에서 매칭률 상위 3개를 추천하고 동점이면 희망 기업을 우선한다")
+    void recommendsMatchingRoleAndPreferredCompany() throws Exception {
+        User user = saveUser("dashboard-preference@example.com", DesiredJob.BACKEND);
+        desiredCompanyRepository.save(DesiredCompany.create(user, DesiredJob.BACKEND, "네이버, 카카오, 쿠팡"));
+        AnalysisReport report = analysisReportRepository.save(completedReport(user));
+        saveUserStack(user, report, "Java", 90, null);
+        saveUserStack(user, report, "AWS", 100, null);
+        savePosting("P-1", "kakao", "kakao", DesiredJob.BACKEND, Set.of("Java"));
+        savePosting("P-2", "other", "다른 기업", DesiredJob.BACKEND, Set.of("Java"));
+        savePosting("P-3", "other", "다른 기업", DesiredJob.BACKEND, Set.of("Java", "Kafka"));
+        savePosting("P-4", "other", "다른 기업", DesiredJob.BACKEND, Set.of("AWS"));
+        savePosting("P-5", "other", "다른 기업", DesiredJob.SECURITY, Set.of("AWS"));
+
+        mockMvc.perform(get("/api/dashboard/summary").with(user(new UserDetailsImpl(user))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.recommendedJobs.length()").value(3))
+                .andExpect(jsonPath("$.result.recommendedJobs[0].title").value("백엔드 개발자 P-4"))
+                .andExpect(jsonPath("$.result.recommendedJobs[1].title").value("백엔드 개발자 P-1"))
+                .andExpect(jsonPath("$.result.recommendedJobs[2].title").value("백엔드 개발자 P-2"));
+    }
+
+    @Test
     @DisplayName("다시 분석하는 중이어도 가장 최근에 끝난 리포트로 그린다")
     void usesLatestCompletedReportWhileAnalyzing() throws Exception {
         User user = saveUser("dashboard-analyzing@example.com", DesiredJob.BACKEND);
@@ -191,10 +213,16 @@ class DashboardControllerTest {
     }
 
     private void savePosting(String externalId, Set<String> techStacks) {
+        savePosting(externalId, "kakao", "카카오", DesiredJob.BACKEND, techStacks);
+    }
+
+    private void savePosting(String externalId, String companyCode, String company,
+                             DesiredJob desiredJob, Set<String> techStacks) {
         JobPosting posting = jobPostingRepository.save(JobPosting.create(
                 JobPostingSnapshot.builder()
-                        .companyCode("kakao")
-                        .company("카카오")
+                        .companyCode(companyCode)
+                        .company(company)
+                        .desiredJob(desiredJob)
                         .externalId(externalId)
                         .title("백엔드 개발자 " + externalId)
                         .applyUrl("https://careers.kakao.com/jobs/" + externalId)
