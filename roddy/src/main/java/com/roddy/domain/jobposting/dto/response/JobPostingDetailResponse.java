@@ -5,10 +5,9 @@ import com.roddy.domain.jobposting.entity.JobPosting;
 import com.roddy.global.crawler.engine.HtmlTextExtractor;
 import org.jsoup.Jsoup;
 
-import java.util.regex.Pattern;
-
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * 공고 상세.
@@ -37,7 +36,7 @@ public record JobPostingDetailResponse(
 ) {
 
     private static final Pattern HTML_TAG = Pattern.compile(
-            "(?i)<(?:/?(?:h[1-6]|div|p|br|ul|ol|li|span|strong|b|em|i|a|section|article|table|tr|td|script|style|img|hr|html|body))(?=[\\s/>])");
+            "(?i)</?[a-z][a-z0-9:_-]*(?=[\\s/>])[^<>]*>");
 
     private static String readableContent(String content) {
         if (content == null || !HTML_TAG.matcher(content).find()) {
