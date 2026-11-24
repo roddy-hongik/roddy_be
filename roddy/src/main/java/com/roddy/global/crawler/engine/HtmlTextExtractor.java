@@ -3,11 +3,10 @@ package com.roddy.global.crawler.engine;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
+import org.jsoup.select.NodeFilter;
 import org.jsoup.select.NodeTraversor;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -32,16 +31,37 @@ public final class HtmlTextExtractor {
      * <p>Jsoup 의 {@code text()} 는 전부 한 줄로 합쳐 문단 구분이 사라지므로, 텍스트 노드를 직접 훑는다.
      */
     public static String text(Element element) {
-        List<String> lines = new ArrayList<>();
-        NodeTraversor.traverse((node, depth) -> {
-            if (node instanceof TextNode textNode && !isIgnored(node)) {
-                String line = textNode.text().trim();
-                if (!line.isEmpty()) {
-                    lines.add(line);
+        StringBuilder result = new StringBuilder();
+        NodeTraversor.filter(new NodeFilter() {
+            @Override
+            public FilterResult head(Node node, int depth) {
+                if (node instanceof Element tag) {
+                    if (IGNORED_TAGS.contains(tag.normalName())) {
+                        return FilterResult.SKIP_ENTIRELY;
+                    }
+                    if (tag.isBlock() || tag.normalName().equals("br")) {
+                        appendLineBreak(result, tag.normalName().equals("br"));
+                    }
+                } else if (node instanceof TextNode textNode) {
+                    String text = textNode.text();
+                    if (text.startsWith(" ") && (result.isEmpty()
+                            || Character.isWhitespace(result.charAt(result.length() - 1)))) {
+                        text = text.substring(1);
+                    }
+                    result.append(text);
                 }
+                return FilterResult.CONTINUE;
+            }
+
+            @Override
+            public FilterResult tail(Node node, int depth) {
+                if (node instanceof Element tag && tag.isBlock()) {
+                    appendLineBreak(result, false);
+                }
+                return FilterResult.CONTINUE;
             }
         }, element);
-        return String.join("\n", lines);
+        return result.toString().strip();
     }
 
     /**
@@ -80,12 +100,12 @@ public final class HtmlTextExtractor {
         return lineBreak < 0 ? "" : body.substring(lineBreak + 1).trim();
     }
 
-    private static boolean isIgnored(Node node) {
-        for (Node parent = node.parent(); parent != null; parent = parent.parent()) {
-            if (parent instanceof Element element && IGNORED_TAGS.contains(element.normalName())) {
-                return true;
-            }
+    private static void appendLineBreak(StringBuilder result, boolean explicit) {
+        if (!result.isEmpty() && result.charAt(result.length() - 1) == ' ') {
+            result.setLength(result.length() - 1);
         }
-        return false;
+        if (!result.isEmpty() && (explicit || result.charAt(result.length() - 1) != '\n')) {
+            result.append('\n');
+        }
     }
 }
