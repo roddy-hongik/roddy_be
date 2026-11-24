@@ -1,6 +1,7 @@
 # 우아한형제들(배민) — 자체 구축. 목록 API + JSON 상세(recruitNumber 로 조립).
 # Mode B: 사람이 목록 API URL 제공 → 에이전트가 매핑 → 아래에 상세를 수동 보강.
 company: woowahan
+description_html: true
 company_name_ko: 우아한형제들
 source_type: json
 crawler: declarative

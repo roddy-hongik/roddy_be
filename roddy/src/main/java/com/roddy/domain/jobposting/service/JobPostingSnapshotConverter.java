@@ -61,12 +61,16 @@ public class JobPostingSnapshotConverter {
 
         LocalDateTime postedAt = CrawledDateParser.parse(record.text(FIELD_POSTED_AT));
 
+        boolean contentHtml = spec.descriptionHtml()
+                && !Boolean.TRUE.equals(record.value(CrawlRecord.DESCRIPTION_EXTRACTED_TEXT));
+
         return JobPostingSnapshot.builder()
                 .companyCode(spec.company())
                 .company(displayName(spec))
                 .externalId(record.text(CrawlRecord.JOB_ID))
                 .title(record.text(CrawlRecord.TITLE))
                 .content(record.text(FIELD_DESCRIPTION))
+                .contentHtml(contentHtml)
                 .recruitField(record.text(FIELD_JOB_CATEGORY))
                 .desiredJob(JobRoleClassifier.classify(record.text(CrawlRecord.TITLE), record.text(FIELD_JOB_CATEGORY)))
                 .recruitType(recruitType(record.text(FIELD_CAREER)))

@@ -201,9 +201,9 @@ class JobPostingControllerTest {
     @ParameterizedTest
     @MethodSource("readableContentCases")
     @DisplayName("HTML 공고 본문은 태그 없이 읽을 수 있는 글로 반환한다")
-    void returnsReadableHtmlContent(String content, String expected) throws Exception {
+    void returnsReadableHtmlContent(String content, boolean html, String expected) throws Exception {
         JobPosting posting = savePosting("P-1", "백엔드 개발자",
-                builder -> builder.content(content));
+                builder -> builder.content(content).contentHtml(html));
 
         mockMvc.perform(get("/api/jobs/{jobPostingId}", posting.getId()))
                 .andExpect(status().isOk())
@@ -211,12 +211,12 @@ class JobPostingControllerTest {
     }
 
     private static Stream<Arguments> readableContentCases() {
-        String plainText = "서버 개발\n경력 < 3년 & 우대 조건";
+        String plainText = "Java List<String>\n경력 < 3년 & 우대 조건";
         return Stream.of(
-                Arguments.of("<h3>주요 업무</h3><div>서버 개발</div>", "주요 업무\n서버 개발"),
-                Arguments.of("<pre>서버 개발</pre>", "서버 개발"),
-                Arguments.of("<dl><dt>주요 업무</dt><dd>서버 개발</dd></dl>", "주요 업무\n서버 개발"),
-                Arguments.of(plainText, plainText)
+                Arguments.of("<h3>주요 업무</h3><div>서버 개발</div>", true, "주요 업무\n서버 개발"),
+                Arguments.of("<pre>서버 개발</pre>", true, "서버 개발"),
+                Arguments.of("<dl><dt>주요 업무</dt><dd>서버 개발</dd></dl>", true, "주요 업무\n서버 개발"),
+                Arguments.of(plainText, false, plainText)
         );
     }
 

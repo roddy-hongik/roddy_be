@@ -153,7 +153,7 @@ class DetailFetcherTest {
                         <html><body>
                         <div class="PageLayout__PageContent">
                           <h2>주요 업무</h2>
-                          <p>백엔드 서비스 개발</p>
+                          <p>백엔드 서비스 개발 List&lt;String&gt;</p>
                         </div>
                         </body></html>
                         """, MediaType.TEXT_HTML));
@@ -163,7 +163,8 @@ class DetailFetcherTest {
 
         server.verify();
         assertThat(records.getFirst().text(CrawlRecord.DESCRIPTION))
-                .isEqualTo("주요 업무\n백엔드 서비스 개발");
+                .isEqualTo("주요 업무\n백엔드 서비스 개발 List<String>");
+        assertThat(records.getFirst().value(CrawlRecord.DESCRIPTION_EXTRACTED_TEXT)).isEqualTo(true);
     }
 
     @Test

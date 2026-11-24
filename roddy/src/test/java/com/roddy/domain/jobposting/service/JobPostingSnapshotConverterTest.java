@@ -64,6 +64,31 @@ class JobPostingSnapshotConverterTest {
     }
 
     @Test
+    @DisplayName("HTML 원문과 이미 추출된 일반 텍스트의 형식을 구분한다")
+    void preservesDescriptionFormat() {
+        CrawlSpec htmlSpec = CrawlSpecFixtures.spec("""
+                company: woowahan
+                source_type: json
+                description_html: true
+                list: {url: https://example.com}
+                fields: {job_id: id, title: title}
+                """);
+        CrawlRecord raw = record(values -> {
+            values.putAll(minimalValues());
+            values.put(CrawlRecord.DESCRIPTION, "<pre>서버 개발</pre>");
+        });
+        CrawlRecord extracted = raw.merge(Map.of(
+                CrawlRecord.DESCRIPTION, "List<String>",
+                CrawlRecord.DESCRIPTION_EXTRACTED_TEXT, true));
+
+        assertThat(converter.convert(htmlSpec, raw).contentHtml()).isTrue();
+        JobPostingSnapshot text = converter.convert(htmlSpec, extracted);
+        assertThat(text.contentHtml()).isFalse();
+        assertThat(text.content()).isEqualTo("List<String>");
+        assertThat(converter.convert(spec, extracted).contentHtml()).isFalse();
+    }
+
+    @Test
     @DisplayName("표시용 회사명이 없으면 회사 코드를 쓴다")
     void fallsBackToCompanyCode() {
         CrawlSpec withoutName = CrawlSpecFixtures.spec("""

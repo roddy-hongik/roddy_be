@@ -103,6 +103,7 @@ public class DetailFetcher {
             String description = HtmlTextExtractor.selectText(document, detail.bodySelector());
             if (description != null && !description.isBlank()) {
                 values.put(CrawlRecord.DESCRIPTION, description);
+                values.put(CrawlRecord.DESCRIPTION_EXTRACTED_TEXT, true);
             }
         }
         if (detail.sectionBox() != null) {

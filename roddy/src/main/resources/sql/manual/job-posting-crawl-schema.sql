@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS job_postings
     company            VARCHAR(255) NOT NULL COMMENT '표시용 회사명 (예: 카카오)',
     title              VARCHAR(500) NOT NULL,
     content            TEXT         NULL COMMENT '상세 수집 전에는 비어 있을 수 있음',
+    content_html       BOOLEAN      NULL COMMENT '본문이 HTML 원문인지 여부',
     recruit_field      VARCHAR(200) NULL COMMENT '수집 원본의 직무 분류 문자열',
     desired_job        VARCHAR(50)  NULL COMMENT 'recruit_field 를 로디 직무로 분류한 결과',
     recruit_type       VARCHAR(50)  NULL COMMENT 'INTERN / JUNIOR / SENIOR',

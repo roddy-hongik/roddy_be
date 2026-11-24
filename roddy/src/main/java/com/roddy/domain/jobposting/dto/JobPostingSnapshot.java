@@ -23,6 +23,7 @@ public record JobPostingSnapshot(
         String externalId,
         String title,
         String content,
+        boolean contentHtml,
         String recruitField,
         DesiredJob desiredJob,
         RecruitType recruitType,

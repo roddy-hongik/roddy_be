@@ -20,6 +20,8 @@ public record CrawlRecord(Map<String, Object> values, Map<String, Object> extra,
     public static final String TITLE = "title";
     public static final String APPLY_URL = "apply_url";
     public static final String DESCRIPTION = "description";
+    /** HTML 상세에서 이미 텍스트로 변환한 본문에 남기는 형식 표시. */
+    public static final String DESCRIPTION_EXTRACTED_TEXT = "description_extracted_text";
     public static final String SECTIONS = "sections";
 
     public CrawlRecord {

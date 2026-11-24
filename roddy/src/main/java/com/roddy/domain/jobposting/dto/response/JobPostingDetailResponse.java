@@ -7,7 +7,6 @@ import org.jsoup.Jsoup;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  * 공고 상세.
@@ -35,11 +34,9 @@ public record JobPostingDetailResponse(
         boolean isScrapped
 ) {
 
-    private static final Pattern HTML_TAG = Pattern.compile(
-            "(?i)</?[a-z][a-z0-9:_-]*(?=[\\s/>])[^<>]*>");
-
-    private static String readableContent(String content) {
-        if (content == null || !HTML_TAG.matcher(content).find()) {
+    private static String readableContent(JobPosting posting) {
+        String content = posting.getContent();
+        if (content == null || !Boolean.TRUE.equals(posting.getContentHtml())) {
             return content;
         }
         return HtmlTextExtractor.text(Jsoup.parseBodyFragment(content).body());
@@ -51,7 +48,7 @@ public record JobPostingDetailResponse(
                 posting.getCompanyCode(),
                 posting.getCompany(),
                 posting.getTitle(),
-                readableContent(posting.getContent()),
+                readableContent(posting),
                 posting.getRecruitField(),
                 posting.getRecruitType() == null ? null : posting.getRecruitType().getDisplayName(),
                 posting.getEmploymentType(),
