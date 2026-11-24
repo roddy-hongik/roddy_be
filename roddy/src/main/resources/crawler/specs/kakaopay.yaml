@@ -3,6 +3,7 @@
 # 공식 API 는 인증 필요하지만, 채용 페이지의 __NEXT_DATA__ 에 공고가 박혀 있음(React Query 캐시).
 # 사용법: {subdomain} 만 회사값으로 치환 (예: kakaopay).
 company: kakaopay
+description_html: true
 company_name_ko: 카카오페이
 entry_url: https://kakaopay.career.greetinghr.com/ko/main
 

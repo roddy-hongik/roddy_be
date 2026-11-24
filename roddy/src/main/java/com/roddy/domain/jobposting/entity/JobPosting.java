@@ -28,6 +28,7 @@ import org.hibernate.annotations.BatchSize;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -80,6 +81,10 @@ public class JobPosting extends BaseEntity {
     /** 공고 본문. 목록 응답에 본문이 없는 회사는 상세 수집 전까지 비어 있을 수 있어 null 을 허용한다. */
     @Column(columnDefinition = "TEXT")
     private String content;
+
+    /** 수집 명세가 지정한 본문 형식. null은 형식 표시 이전의 데이터다. */
+    @Column(name = "content_html")
+    private Boolean contentHtml;
 
     /** 수집 원본의 직무 분류 문자열 (예: Server, 백엔드 개발). */
     @Column(length = 200)
@@ -155,6 +160,7 @@ public class JobPosting extends BaseEntity {
                 .company(snapshot.company())
                 .title(snapshot.title())
                 .content(snapshot.content())
+                .contentHtml(snapshot.contentHtml())
                 .recruitField(snapshot.recruitField())
                 .desiredJob(snapshot.desiredJob())
                 .recruitType(snapshot.recruitType())
@@ -183,6 +189,7 @@ public class JobPosting extends BaseEntity {
         this.company = snapshot.company();
         this.title = snapshot.title();
         this.content = snapshot.content();
+        this.contentHtml = snapshot.contentHtml();
         this.recruitField = snapshot.recruitField();
         this.desiredJob = snapshot.desiredJob();
         this.recruitType = snapshot.recruitType();
@@ -234,7 +241,8 @@ public class JobPosting extends BaseEntity {
 
     /** 상세 재수집 여부 판단용. 해시가 같으면 목록 기준으로 바뀐 게 없다는 뜻이다. */
     public boolean hasSameContent(JobPostingSnapshot snapshot) {
-        return this.contentHash != null && this.contentHash.equals(snapshot.contentHash());
+        return this.contentHash != null && this.contentHash.equals(snapshot.contentHash())
+                && Objects.equals(this.contentHtml, snapshot.contentHtml());
     }
 
     public boolean isDeadlinePassed(LocalDateTime now) {

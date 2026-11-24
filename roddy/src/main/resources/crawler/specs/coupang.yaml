@@ -2,6 +2,7 @@
 # 분류: greenhouse 공개 API 확인 (board=coupang)
 # ATS: greenhouse (board=coupang)
 company: coupang
+description_html: true
 source_type: json
 crawler: declarative
 list:

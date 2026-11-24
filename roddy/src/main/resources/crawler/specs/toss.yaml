@@ -1,5 +1,6 @@
 # === 회사 식별 ===
 company: toss
+description_html: true
 company_name_ko: 토스
 entry_url: https://toss.im/career/jobs
 

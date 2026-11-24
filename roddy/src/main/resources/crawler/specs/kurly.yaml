@@ -2,6 +2,7 @@
 # 분류: greeting 공개 API 확인 (board=kurly)
 # ATS: greeting (board=kurly)
 company: kurly
+description_html: true
 source_type: embedded_json
 crawler: declarative
 list:

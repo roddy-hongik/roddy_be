@@ -26,6 +26,18 @@ class HtmlTextExtractorTest {
     }
 
     @Test
+    @DisplayName("인라인 텍스트는 원래 문장과 기술명을 유지하며 문단과 br에서 줄을 나눈다")
+    void keepsInlineTextTogether() {
+        Document document = Jsoup.parse("""
+                <p>Java <strong>Spring</strong> Boot와 <span>My</span>SQL을 사용합니다.</p>
+                <p>API 개발<br><br>운영 <em>경험</em></p>
+                """);
+
+        assertThat(HtmlTextExtractor.text(document.body()))
+                .isEqualTo("Java Spring Boot와 MySQL을 사용합니다.\nAPI 개발\n\n운영 경험");
+    }
+
+    @Test
     @DisplayName("스크립트와 스타일은 본문에 넣지 않는다")
     void skipsScriptAndStyle() {
         Document document = Jsoup.parse("""

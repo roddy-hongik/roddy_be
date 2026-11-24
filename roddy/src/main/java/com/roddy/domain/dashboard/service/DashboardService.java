@@ -5,8 +5,6 @@ import com.roddy.domain.analysis.service.AnalysisReportStore;
 import com.roddy.domain.auth.entity.User;
 import com.roddy.domain.auth.repository.UserRepository;
 import com.roddy.domain.dashboard.dto.response.DashboardSummaryResponse;
-import com.roddy.domain.jobposting.dto.request.JobPostingSearchCondition;
-import com.roddy.domain.jobposting.dto.response.JobPostingListItemResponse;
 import com.roddy.domain.jobposting.service.JobPostingService;
 import com.roddy.domain.mypage.entity.DesiredCompany;
 import com.roddy.domain.mypage.repository.DesiredCompanyRepository;
@@ -14,8 +12,6 @@ import com.roddy.global.apiPayload.code.GeneralErrorCode;
 import com.roddy.global.apiPayload.exception.GeneralException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 /**
  * 메인 대시보드에 흩어진 결과를 모은다.
@@ -29,7 +25,6 @@ public class DashboardService {
 
     /** 대시보드에 보여줄 추천 공고 수. */
     private static final int RECOMMENDED_JOB_COUNT = 3;
-    private static final String SORT_BY_MATCH = "match";
 
     private final UserRepository userRepository;
     private final DesiredCompanyRepository desiredCompanyRepository;
@@ -56,20 +51,8 @@ public class DashboardService {
                 report,
                 analysisReportStore.findCategories(report.getId()),
                 analysisReportStore.findStacks(report.getId()),
-                recommendedJobs(user.getId())
+                jobPostingService.getRecommendedJobs(user.getId(), user.getDesiredJob(), desiredCompany, RECOMMENDED_JOB_COUNT)
         );
     }
 
-    /**
-     * 모집 중인 공고를 매칭률 순으로 몇 건. 요구 기술을 하나도 갖지 못한 공고(0%)는 추천이 아니라서 뺀다.
-     *
-     * <p>매칭률은 공고 목록과 같은 계산을 쓴다. 대시보드에서 본 숫자와 공고 목록에서 본 숫자가 같아야 한다.
-     */
-    private List<JobPostingListItemResponse> recommendedJobs(Long userId) {
-        return jobPostingService
-                .getJobPostings(new JobPostingSearchCondition(), 0, RECOMMENDED_JOB_COUNT, SORT_BY_MATCH, userId)
-                .jobs().stream()
-                .filter(job -> job.matchRate() != null && job.matchRate() > 0)
-                .toList();
-    }
 }

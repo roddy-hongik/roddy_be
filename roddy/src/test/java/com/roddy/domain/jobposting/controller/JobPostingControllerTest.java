@@ -16,6 +16,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -29,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -192,6 +196,54 @@ class JobPostingControllerTest {
                 .andExpect(jsonPath("$.result.workType").value("정규직"))
                 .andExpect(jsonPath("$.result.applyUrl").value("https://careers.kakao.com/jobs/P-1"))
                 .andExpect(jsonPath("$.result.isScrapped").value(false));
+    }
+
+    @ParameterizedTest
+    @MethodSource("readableContentCases")
+    @DisplayName("HTML 공고 본문은 태그 없이 읽을 수 있는 글로 반환한다")
+    void returnsReadableHtmlContent(String content, boolean html, String expected) throws Exception {
+        JobPosting posting = savePosting("P-1", "백엔드 개발자",
+                builder -> builder.content(content).contentHtml(html));
+
+        mockMvc.perform(get("/api/jobs/{jobPostingId}", posting.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.content").value(expected));
+    }
+
+    private static Stream<Arguments> readableContentCases() {
+        String plainText = "Java List<String>\n경력 < 3년 & 우대 조건";
+        return Stream.of(
+                Arguments.of("<h3>주요 업무</h3><div>서버 개발</div>", true, "주요 업무\n서버 개발"),
+                Arguments.of("<pre>서버 개발</pre>", true, "서버 개발"),
+                Arguments.of("<dl><dt>주요 업무</dt><dd>서버 개발</dd></dl>", true, "주요 업무\n서버 개발"),
+                Arguments.of("<p>Java <strong>Spring</strong> Boot &amp; JPA</p><p>API 개발<br>운영</p>", true,
+                        "Java Spring Boot & JPA\nAPI 개발\n운영"),
+                Arguments.of(plainText, false, plainText)
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("greenhouseContentCases")
+    @DisplayName("Greenhouse 공고의 인코딩된 HTML과 원본 HTML을 처리한다")
+    void returnsReadableGreenhouseContent(String company, String content, boolean html, String expected) throws Exception {
+        JobPosting posting = savePosting("P-1", "백엔드 개발자",
+                builder -> builder.companyCode(company).content(content).contentHtml(html));
+
+        mockMvc.perform(get("/api/jobs/{jobPostingId}", posting.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.content").value(expected));
+    }
+
+    private static Stream<Arguments> greenhouseContentCases() {
+        String encoded = "&lt;p&gt;Java &lt;strong&gt;Spring&lt;/strong&gt; Boot &amp;amp; List&amp;lt;String&amp;gt;&lt;/p&gt;";
+        String raw = "<p>Java <strong>Spring</strong> Boot &amp; List&lt;String&gt;</p>";
+        String expected = "Java Spring Boot & List<String>";
+        return Stream.of(
+                Arguments.of("coupang", encoded, true, expected),
+                Arguments.of("daangn", encoded, true, expected),
+                Arguments.of("coupang", raw, true, expected),
+                Arguments.of("coupang", expected, false, expected)
+        );
     }
 
     @Test

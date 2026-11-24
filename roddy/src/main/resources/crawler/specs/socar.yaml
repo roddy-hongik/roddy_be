@@ -6,6 +6,7 @@
 #   고용형태(employment_type_code): ET01=정규직, ET02=계약직, ET03=인턴, ET04=파견
 #   근무지(work_area_code): WA01=제주, WA02=서울(강남), WA03=서울(성수)
 company: socar
+description_html: true
 company_name_ko: 쏘카
 entry_url: https://www.socarcorp.kr/careers/jobs
 crawler: declarative

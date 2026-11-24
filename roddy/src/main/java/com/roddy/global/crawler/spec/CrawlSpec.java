@@ -24,6 +24,8 @@ public record CrawlSpec(
         String entryUrl,
         String crawler,
         SourceType sourceType,
+        /** description 필드가 HTML 원문으로 제공되는지 여부. DOM에서 추출한 글은 false. */
+        boolean descriptionHtml,
         ListSpec list,
         PaginationSpec pagination,
         /** 수집 결과 점검 시 비어 있으면 안 되는 필드. */

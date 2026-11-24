@@ -87,6 +87,18 @@ class JobPostingTest {
     }
 
     @Test
+    @DisplayName("본문 형식만 바뀌어도 갱신한다")
+    void updatesChangedContentFormat() {
+        JobPosting posting = JobPosting.create(snapshot().contentHtml(false).build(), CRAWLED_AT);
+        JobPostingSnapshot html = snapshot().contentHtml(true).build();
+
+        assertThat(posting.hasSameContent(html)).isFalse();
+        posting.update(html, CRAWLED_AT.plusDays(1));
+        assertThat(posting.getContentHtml()).isTrue();
+        assertThat(posting.hasSameContent(html)).isTrue();
+    }
+
+    @Test
     @DisplayName("수집 시각만 바뀐 경우는 내용 변경으로 보지 않는다")
     void crawledAtDoesNotAffectContentHash() {
         JobPosting posting = JobPosting.create(snapshot().build(), CRAWLED_AT);

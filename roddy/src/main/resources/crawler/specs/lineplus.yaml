@@ -2,6 +2,7 @@
 # 분류: Gatsby page-data.json (Strapi CMS)
 # API: https://careers.linecorp.com/page-data/ko/jobs/page-data.json
 company: lineplus
+description_html: true
 company_name_ko: LINE Plus
 entry_url: https://careers.linecorp.com/ko/jobs/
 crawler: declarative

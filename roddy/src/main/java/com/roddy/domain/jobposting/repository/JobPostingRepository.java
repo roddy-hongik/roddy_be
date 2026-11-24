@@ -76,6 +76,17 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
                          @Param("recruitType") RecruitType recruitType,
                          @Param("keyword") String keyword);
 
+    /** 희망 직무의 모집 중 공고. 매칭률 동점일 때 희망 기업과 최신 공고가 먼저 온다. */
+    @Query("""
+            select jp.id from JobPosting jp
+            where jp.status = :status and jp.desiredJob = :desiredJob
+            order by case when lower(jp.company) in :companies or lower(jp.companyCode) in :companies then 0 else 1 end,
+                     case when jp.postedAt is null then 1 else 0 end, jp.postedAt desc, jp.id desc
+            """)
+    List<Long> findRecommendationIds(@Param("status") JobPostingStatus status,
+                                     @Param("desiredJob") DesiredJob desiredJob,
+                                     @Param("companies") Collection<String> companies);
+
     /** 공고 id → 요구 기술 쌍. 매칭률을 계산할 때 공고 본문까지 읽지 않기 위해 따로 둔다. */
     @Query("select jp.id, stack from JobPosting jp join jp.techStacks stack where jp.id in :ids")
     List<Object[]> findTechStacksByIds(@Param("ids") Collection<Long> ids);

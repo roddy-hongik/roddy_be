@@ -2,14 +2,19 @@ package com.roddy.domain.jobposting.dto.response;
 
 import com.roddy.domain.enums.JobPostingStatus;
 import com.roddy.domain.jobposting.entity.JobPosting;
+import com.roddy.global.crawler.engine.HtmlTextExtractor;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
+import org.jsoup.parser.Parser;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 공고 상세.
  *
- * @param content         수집한 공고 본문 원문. 상세 수집이 실패했거나 아직 돌지 않았으면 비어 있다.
+ * @param content         읽을 수 있는 공고 본문. 상세 수집이 실패했거나 아직 돌지 않았으면 비어 있다.
  * @param sourceUpdatedAt 채용 사이트가 알려준 최종 수정 시각.
  */
 public record JobPostingDetailResponse(
@@ -32,13 +37,28 @@ public record JobPostingDetailResponse(
         boolean isScrapped
 ) {
 
+    /** Greenhouse 공개 API의 content 필드는 HTML 엔티티로 인코딩되어 제공될 수 있다. */
+    private static final Set<String> GREENHOUSE_COMPANIES = Set.of("coupang", "daangn");
+
+    private static String readableContent(JobPosting posting) {
+        String content = posting.getContent();
+        if (content == null || !Boolean.TRUE.equals(posting.getContentHtml())) {
+            return content;
+        }
+        Element body = Jsoup.parseBodyFragment(content).body();
+        if (GREENHOUSE_COMPANIES.contains(posting.getCompanyCode()) && body.children().isEmpty()) {
+            body = Jsoup.parseBodyFragment(Parser.unescapeEntities(content, false)).body();
+        }
+        return HtmlTextExtractor.text(body);
+    }
+
     public static JobPostingDetailResponse from(JobPosting posting, boolean scrapped) {
         return new JobPostingDetailResponse(
                 posting.getId(),
                 posting.getCompanyCode(),
                 posting.getCompany(),
                 posting.getTitle(),
-                posting.getContent(),
+                readableContent(posting),
                 posting.getRecruitField(),
                 posting.getRecruitType() == null ? null : posting.getRecruitType().getDisplayName(),
                 posting.getEmploymentType(),

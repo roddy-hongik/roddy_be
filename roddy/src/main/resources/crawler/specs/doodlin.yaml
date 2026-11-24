@@ -2,6 +2,7 @@
 # 분류: greeting 공개 API 확인 (board=doodlin)
 # ATS: greeting (board=doodlin)
 company: doodlin
+description_html: true
 source_type: embedded_json
 crawler: declarative
 list:
